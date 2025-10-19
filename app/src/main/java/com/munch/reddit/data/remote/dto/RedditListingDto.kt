@@ -291,7 +291,6 @@ private fun isDirectImagePost(
 ): Boolean {
     if (isRedditMediaDomain) return true
     if (destinationUrl.isImageUrl()) return true
-    if (normalizedThumbnail.isImageUrl()) return true
     return false
 }
 

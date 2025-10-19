@@ -70,7 +70,9 @@ fun AppNavHost(modifier: Modifier = Modifier) {
 
         composable(SELECT_THEME_ROUTE) {
             SelectThemeScreen(
-                onThemeSelected = {
+                initialThemeId = appPreferences.selectedTheme,
+                onThemeSelected = { themeId ->
+                    appPreferences.selectedTheme = themeId
                     appPreferences.hasCompletedOnboarding = true
                     navController.navigate(FEED_ROUTE) {
                         popUpTo(SELECT_THEME_ROUTE) { inclusive = true }
@@ -257,7 +259,11 @@ fun AppNavHost(modifier: Modifier = Modifier) {
             }
         ) {
             SelectThemeScreen(
-                onThemeSelected = { navController.popBackStack() },
+                initialThemeId = appPreferences.selectedTheme,
+                onThemeSelected = { themeId ->
+                    appPreferences.selectedTheme = themeId
+                    navController.popBackStack()
+                },
                 onBack = { navController.popBackStack() }
             )
         }

@@ -549,7 +549,7 @@ private fun PostDetailContent(
             .fillMaxSize()
             .padding(top = insetTop, bottom = insetBottom),
         state = listState,
-        contentPadding = PaddingValues(top = spacing.lg, bottom = spacing.xl)
+        contentPadding = PaddingValues(top = spacing.lg, bottom = 80.dp)
     ) {
         item {
             Column {
