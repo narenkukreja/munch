@@ -6,7 +6,10 @@
       "Bash(./gradlew clean:*)",
       "WebFetch(domain:pl-coding.com)",
       "Bash(./gradlew assembleDebug:*)",
-      "Bash(./gradlew compileDebugKotlin:*)"
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "WebFetch(domain:m3.material.io)",
+      "Bash(find:*)",
+      "WebFetch(domain:composables.com)"
     ],
     "deny": [],
     "ask": []

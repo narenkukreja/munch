@@ -57,7 +57,8 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilterChip
@@ -161,7 +162,7 @@ fun PostDetailRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PostDetailScreen(
     uiState: PostDetailViewModel.PostDetailUiState,
@@ -494,7 +495,7 @@ private fun PostDetailScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PostDetailContent(
     post: RedditPost,
@@ -602,7 +603,7 @@ private fun PostDetailContent(
                         .padding(vertical = spacing.lg),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    LoadingIndicator(modifier = Modifier.size(32.dp))
                 }
             }
         }
@@ -660,7 +661,7 @@ private fun PostDetailContent(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isAppendingComments) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        LoadingIndicator(modifier = Modifier.size(28.dp))
                     } else {
                         val buttonLabel = if (pendingRemoteReplyCount > 0) {
                             val unit = if (pendingRemoteReplyCount == 1) "reply" else "replies"
@@ -1084,7 +1085,7 @@ private fun LoadMoreRepliesItem(
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RemoteRepliesItem(
     node: PostDetailViewModel.CommentListItem.RemoteRepliesNode,
@@ -1125,7 +1126,7 @@ private fun RemoteRepliesItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    LoadingIndicator(modifier = Modifier.size(18.dp))
                     Text(text = "Loading replies…", color = MetaInfoColor, fontSize = 12.sp)
                 }
             }
@@ -1162,11 +1163,11 @@ private fun RemoteRepliesItem(
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+        LoadingIndicator()
     }
 }
 

@@ -41,16 +41,15 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubble
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -604,6 +603,7 @@ private fun FilterDropdownMenu(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
     Box(
@@ -611,7 +611,7 @@ private fun LoadingState(modifier: Modifier = Modifier) {
             .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator()
+        LoadingIndicator()
     }
 }
 
@@ -639,7 +639,7 @@ private fun ErrorState(
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PostList(
     posts: List<RedditPost>,
@@ -659,10 +659,6 @@ private fun PostList(
     canLoadMore: Boolean,
     contentPadding: PaddingValues
 ) {
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = onRefresh
-    )
     val density = LocalDensity.current
     val rightEdgeThresholdPx = remember(density) { with(density) { 48.dp.toPx() } }
     val backDragThreshold = 120f
@@ -685,11 +681,12 @@ private fun PostList(
             }
     }
 
-    Box(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = modifier
             .fillMaxSize()
             .background(SpacerBackgroundColor)
-            .pullRefresh(pullRefreshState)
             .navigationBarsPadding()
             .offset { androidx.compose.ui.unit.IntOffset(dragOffsetX.value.toInt(), 0) }
             .pointerInput(Unit) {
@@ -811,7 +808,7 @@ private fun PostList(
                             .padding(vertical = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        LoadingIndicator(modifier = Modifier.size(28.dp))
                     }
                 }
             } else if (!canLoadMore && posts.isNotEmpty()) {
@@ -820,17 +817,6 @@ private fun PostList(
                 }
             }
         }
-
-        PullRefreshIndicator(
-            refreshing = isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = spacing.md),
-            backgroundColor = PostBackgroundColor,
-            contentColor = SubredditColor,
-            scale = true
-        )
     }
 }
 
