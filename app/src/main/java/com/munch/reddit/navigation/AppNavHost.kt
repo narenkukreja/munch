@@ -257,7 +257,8 @@ fun AppNavHost(modifier: Modifier = Modifier) {
             }
         ) {
             SelectThemeScreen(
-                onThemeSelected = { navController.popBackStack() }
+                onThemeSelected = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
     }

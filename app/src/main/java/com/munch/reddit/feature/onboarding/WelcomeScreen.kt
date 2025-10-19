@@ -46,7 +46,7 @@ fun WelcomeScreen(
 
             // App Icon
             Image(
-                painter = painterResource(id = R.drawable.ic_launcher),
+                painter = painterResource(id = R.drawable.ic_launcher2),
                 contentDescription = "Wormi for Reddit Icon",
                 modifier = Modifier.size(120.dp)
             )
