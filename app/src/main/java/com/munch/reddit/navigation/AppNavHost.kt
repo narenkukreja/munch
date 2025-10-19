@@ -103,15 +103,25 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     initialOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeIn(animationSpec = tween(200))
             },
             exitTransition = {
                 fadeOut(animationSpec = tween(200))
             },
-            popEnterTransition = null,
-            popExitTransition = null
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(200))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) + fadeOut(animationSpec = tween(200))
+            }
         ) { backStackEntry ->
             val permalink = backStackEntry.arguments?.getString("permalink")?.let(Uri::decode)
             if (permalink != null) {
@@ -153,7 +163,7 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     initialOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeIn(animationSpec = tween(200))
             },
@@ -168,7 +178,7 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     targetOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeOut(animationSpec = tween(200))
             }
@@ -194,7 +204,7 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     initialOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeIn(animationSpec = tween(200))
             },
@@ -209,7 +219,7 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     targetOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeOut(animationSpec = tween(200))
             }
@@ -226,7 +236,7 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     initialOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeIn(animationSpec = tween(200))
             },
@@ -241,7 +251,7 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     targetOffsetX = { fullWidth -> fullWidth },
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                        stiffness = Spring.StiffnessMediumLow
                     )
                 ) + fadeOut(animationSpec = tween(200))
             }

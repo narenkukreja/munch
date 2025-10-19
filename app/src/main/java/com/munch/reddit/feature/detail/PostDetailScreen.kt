@@ -218,7 +218,7 @@ private fun PostDetailScreen(
                                     targetValue = size.width.toFloat(),
                                     animationSpec = spring(
                                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        stiffness = Spring.StiffnessMediumLow
                                     )
                                 )
                                 onBack()
@@ -229,7 +229,7 @@ private fun PostDetailScreen(
                                     targetValue = 0f,
                                     animationSpec = spring(
                                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        stiffness = Spring.StiffnessMediumLow
                                     )
                                 )
                             }
@@ -241,7 +241,7 @@ private fun PostDetailScreen(
                                 targetValue = 0f,
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
+                                    stiffness = Spring.StiffnessMediumLow
                                 )
                             )
                         }
@@ -561,7 +561,12 @@ private fun PostDetailContent(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateContentSize()
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
                     ) {
                         RedditPostMediaContent(
                             media = post.media,
@@ -790,8 +795,20 @@ private fun PostHeader(
                 }
                 AnimatedVisibility(
                     visible = post.isStickied,
-                    enter = fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.8f),
-                    exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.8f)
+                    enter = fadeIn(animationSpec = tween(200)) + scaleIn(
+                        initialScale = 0.8f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ),
+                    exit = fadeOut(animationSpec = tween(150)) + scaleOut(
+                        targetScale = 0.8f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
                 ) {
                     Surface(
                         color = PinnedLabelColor.copy(alpha = 0.18f),
@@ -819,8 +836,19 @@ private fun PostHeader(
             val collapsedInteraction = remember { MutableInteractionSource() }
             AnimatedVisibility(
                 visible = isBodyExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                enter = expandVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) + fadeIn(),
+                exit = shrinkVertically(
+                    shrinkTowards = Alignment.Top,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) + fadeOut()
             ) {
                 LinkifiedText(
                     text = post.selfText,

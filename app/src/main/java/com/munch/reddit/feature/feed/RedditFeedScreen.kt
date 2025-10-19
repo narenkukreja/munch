@@ -712,8 +712,8 @@ private fun PostList(
                                 dragOffsetX.animateTo(
                                     targetValue = size.width.toFloat(),
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
                                     )
                                 )
                                 onSwipeBack()
@@ -723,8 +723,8 @@ private fun PostList(
                                 dragOffsetX.animateTo(
                                     targetValue = 0f,
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
                                     )
                                 )
                             }
@@ -742,8 +742,8 @@ private fun PostList(
                             dragOffsetX.animateTo(
                                 targetValue = 0f,
                                 animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
                                 )
                             )
                         }

@@ -130,8 +130,8 @@ fun SubredditSideSheet(
                                         dragOffsetX.animateTo(
                                             targetValue = 0f,
                                             animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
+                                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                                stiffness = Spring.StiffnessMediumLow
                                             )
                                         )
                                     }
@@ -142,8 +142,8 @@ fun SubredditSideSheet(
                                     dragOffsetX.animateTo(
                                         targetValue = 0f,
                                         animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessMedium
+                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
                                         )
                                     )
                                 }

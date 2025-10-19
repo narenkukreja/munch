@@ -57,15 +57,6 @@ fun SelectThemeScreen(
         ) {
             Spacer(modifier = Modifier.height(30.dp))
 
-            // Title
-            Text(
-                text = "Select Your Theme!",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = TitleColor,
-                textAlign = TextAlign.Center
-            )
-
             Spacer(modifier = Modifier.height(24.dp))
 
             // Feed Preview
