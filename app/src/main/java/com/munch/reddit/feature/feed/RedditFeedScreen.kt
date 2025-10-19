@@ -45,6 +45,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Button
@@ -853,7 +856,21 @@ internal fun RedditPostItem(
             if (isGlobalFeed) subredditLabel else "u/${post.author}"
         }
     }
-    val formattedTitle = remember(post.id) { parseHtmlText(post.title) }
+    val errorColor = MaterialTheme.colorScheme.error
+    val formattedTitle = remember(post.id, post.isNsfw, errorColor) {
+        val baseTitle = parseHtmlText(post.title)
+        if (post.isNsfw) {
+            buildAnnotatedString {
+                append(baseTitle)
+                append(" ")
+                withStyle(style = SpanStyle(color = errorColor)) {
+                    append("NSFW")
+                }
+            }
+        } else {
+            buildAnnotatedString { append(baseTitle) }
+        }
+    }
     val bottomLabel = remember(post.id, isGlobalFeed) {
         if (isGlobalFeed) subredditLabel else "u/${post.author}"
     }
@@ -877,26 +894,11 @@ internal fun RedditPostItem(
                     .padding(horizontal = spacing.lg, vertical = spacing.md),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
-                ) {
-                    Text(
-                        text = formattedTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TitleColor,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (post.isNsfw) {
-                        Text(
-                            text = "NSFW",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                Text(
+                    text = formattedTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TitleColor
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.sm)

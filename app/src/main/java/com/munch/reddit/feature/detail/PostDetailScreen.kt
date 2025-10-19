@@ -88,6 +88,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -755,7 +758,21 @@ private fun PostHeader(
     onOpenLink: (String) -> Unit,
     onOpenImage: (String) -> Unit
 ) {
-    val formattedTitle = remember(post.title) { parseHtmlText(post.title) }
+    val errorColor = MaterialTheme.colorScheme.error
+    val formattedTitle = remember(post.title, post.isNsfw, errorColor) {
+        val baseTitle = parseHtmlText(post.title)
+        if (post.isNsfw) {
+            buildAnnotatedString {
+                append(baseTitle)
+                append(" ")
+                withStyle(style = SpanStyle(color = errorColor)) {
+                    append("NSFW")
+                }
+            }
+        } else {
+            buildAnnotatedString { append(baseTitle) }
+        }
+    }
     val spacing = MaterialSpacing
     val displayDomain = remember(post.domain) { post.domain.removePrefix("www.") }
     Column(
