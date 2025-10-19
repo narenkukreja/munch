@@ -25,6 +25,7 @@ import com.munch.reddit.feature.feed.RedditFeedViewModel
 import com.munch.reddit.feature.onboarding.SelectThemeScreen
 import com.munch.reddit.feature.onboarding.WelcomeScreen
 import com.munch.reddit.feature.search.SearchRoute
+import com.munch.reddit.feature.settings.SettingsRoute
 import com.munch.reddit.feature.shared.ImagePreviewRoute
 
 private const val WELCOME_ROUTE = "welcome"
@@ -33,6 +34,8 @@ private const val FEED_ROUTE = "feed"
 private const val DETAIL_ROUTE = "detail/{permalink}"
 private const val IMAGE_PREVIEW_ROUTE = "image_preview/{imageUrl}"
 private const val SEARCH_ROUTE = "search"
+private const val SETTINGS_ROUTE = "settings"
+private const val SETTINGS_THEME_ROUTE = "settings_theme"
 
 fun detailRoute(permalink: String): String = "detail/${Uri.encode(permalink)}"
 fun imagePreviewRoute(imageUrl: String): String = "image_preview/${Uri.encode(imageUrl)}"
@@ -86,6 +89,9 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                 },
                 onSearchClick = {
                     navController.navigate(SEARCH_ROUTE)
+                },
+                onSettingsClick = {
+                    navController.navigate(SETTINGS_ROUTE)
                 }
             )
         }
@@ -179,6 +185,69 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                 onViewSubreddit = { subreddit ->
                     navController.navigateToFeedSubreddit(subreddit)
                 }
+            )
+        }
+        composable(
+            route = SETTINGS_ROUTE,
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ) + fadeIn(animationSpec = tween(200))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(200))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(200))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ) + fadeOut(animationSpec = tween(200))
+            }
+        ) {
+            SettingsRoute(
+                onBack = { navController.popBackStack() },
+                onThemeClick = { navController.navigate(SETTINGS_THEME_ROUTE) }
+            )
+        }
+        composable(
+            route = SETTINGS_THEME_ROUTE,
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ) + fadeIn(animationSpec = tween(200))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(200))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(200))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ) + fadeOut(animationSpec = tween(200))
+            }
+        ) {
+            SelectThemeScreen(
+                onThemeSelected = { navController.popBackStack() }
             )
         }
     }

@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
@@ -70,7 +71,8 @@ fun SubredditSideSheet(
     modifier: Modifier = Modifier,
     width: Dp = 280.dp,
     subredditIcons: Map<String, String?> = emptyMap(),
-    exploreSubreddits: List<String> = emptyList()
+    exploreSubreddits: List<String> = emptyList(),
+    onSettingsClick: () -> Unit = {}
 ) {
     val sheetScrollState = rememberScrollState()
     val dragOffsetX = remember { Animatable(0f) }
@@ -215,24 +217,60 @@ fun SubredditSideSheet(
                                 .verticalScroll(sheetScrollState),
                             verticalArrangement = Arrangement.spacedBy(spacing.sm)
                         ) {
-                            // Favorites section
+                            // Main section
                             Text(
-                                text = "Favorites",
+                                text = "Main",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = TitleColor.copy(alpha = 0.7f),
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xs)
                             )
 
-                            subreddits.forEach { subreddit ->
-                                SubredditItem(
-                                    subreddit = subreddit,
-                                    selectedSubreddit = selectedSubreddit,
-                                    subredditIcons = subredditIcons,
-                                    onSelectSubreddit = onSelectSubreddit,
-                                    onDismissRequest = onDismissRequest,
-                                    spacing = spacing
+                            // r/all item
+                            SubredditItem(
+                                subreddit = "all",
+                                selectedSubreddit = selectedSubreddit,
+                                subredditIcons = subredditIcons,
+                                onSelectSubreddit = onSelectSubreddit,
+                                onDismissRequest = onDismissRequest,
+                                spacing = spacing
+                            )
+
+                            // Settings item
+                            SettingsItem(
+                                onSettingsClick = {
+                                    onSettingsClick()
+                                    onDismissRequest()
+                                },
+                                spacing = spacing
+                            )
+
+                            // Favorites section - filter out "all" from subreddits
+                            val filteredSubreddits = subreddits.filter {
+                                !it.equals("all", ignoreCase = true)
+                            }
+
+                            if (filteredSubreddits.isNotEmpty()) {
+                                Text(
+                                    text = "Favorites",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = TitleColor.copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .padding(horizontal = spacing.sm, vertical = spacing.xs)
+                                        .padding(top = spacing.sm)
                                 )
+
+                                filteredSubreddits.forEach { subreddit ->
+                                    SubredditItem(
+                                        subreddit = subreddit,
+                                        selectedSubreddit = selectedSubreddit,
+                                        subredditIcons = subredditIcons,
+                                        onSelectSubreddit = onSelectSubreddit,
+                                        onDismissRequest = onDismissRequest,
+                                        spacing = spacing
+                                    )
+                                }
                             }
 
                             // Filter out duplicates from explore list
@@ -348,6 +386,46 @@ private fun SubredditItem(
             style = MaterialTheme.typography.titleMedium,
             color = textColor,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun SettingsItem(
+    onSettingsClick: () -> Unit,
+    spacing: com.munch.reddit.ui.theme.MunchSpacing
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable { onSettingsClick() }
+            .padding(
+                horizontal = spacing.sm,
+                vertical = spacing.xs
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = "settings",
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Text(
+            text = "settings",
+            style = MaterialTheme.typography.titleMedium,
+            color = TitleColor,
+            fontWeight = FontWeight.Normal
         )
     }
 }

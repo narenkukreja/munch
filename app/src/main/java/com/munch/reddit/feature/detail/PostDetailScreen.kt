@@ -436,7 +436,8 @@ private fun PostDetailScreen(
                             Text(
                                 text = "Share media link",
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Start
+                                textAlign = TextAlign.Start,
+                                color = SubredditColor
                             )
                         }
                     }
@@ -452,7 +453,8 @@ private fun PostDetailScreen(
                             Text(
                                 text = "Share Reddit link",
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Start
+                                textAlign = TextAlign.Start,
+                                color = SubredditColor
                             )
                         }
                     }
@@ -466,7 +468,7 @@ private fun PostDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showShareDialog = false }) {
-                    Text(text = "Close")
+                    Text(text = "Close", color = SubredditColor)
                 }
             }
         )
@@ -670,7 +672,7 @@ private fun PostDetailContent(
                             "Load more comments"
                         }
                         TextButton(onClick = onUserLoadMoreComments) {
-                            Text(text = buttonLabel)
+                            Text(text = buttonLabel, color = SubredditColor)
                         }
                     }
                 }

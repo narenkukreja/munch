@@ -145,7 +145,8 @@ fun RedditFeedRoute(
     viewModel: RedditFeedViewModel = koinViewModel(),
     onPostSelected: (RedditPost) -> Unit,
     onImageSelected: (String) -> Unit,
-    onSearchClick: () -> Unit = {}
+    onSearchClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -263,6 +264,7 @@ fun RedditFeedRoute(
         onRetry = viewModel::refresh,
         onTitleTapped = scrollToTop,
         onSearchClick = onSearchClick,
+        onSettingsClick = onSettingsClick,
         listState = listState,
         onSwipeBack = { handleBackAttempt() },
         onImageClick = onImageSelected,
@@ -287,6 +289,7 @@ fun RedditFeedScreen(
     onRetry: () -> Unit,
     onTitleTapped: () -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     listState: LazyListState? = null,
     onSwipeBack: () -> Unit = {},
     onImageClick: (String) -> Unit = {},
@@ -406,7 +409,8 @@ fun RedditFeedScreen(
                 onDismissRequest = { showSubredditSheet = false },
                 onSearchClick = onSearchClick,
                 subredditIcons = uiState.subredditIcons,
-                exploreSubreddits = SubredditCatalog.exploreSubreddits
+                exploreSubreddits = SubredditCatalog.exploreSubreddits,
+                onSettingsClick = onSettingsClick
             )
 
             // Floating Toolbar
