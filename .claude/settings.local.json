@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew compileDebugKotlin)",
+      "WebSearch",
+      "Bash(./gradlew clean:*)",
+      "WebFetch(domain:pl-coding.com)",
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(./gradlew compileDebugKotlin:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
