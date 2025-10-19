@@ -9,7 +9,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
@@ -27,6 +30,8 @@ import com.munch.reddit.feature.onboarding.WelcomeScreen
 import com.munch.reddit.feature.search.SearchRoute
 import com.munch.reddit.feature.settings.SettingsRoute
 import com.munch.reddit.feature.shared.ImagePreviewRoute
+import com.munch.reddit.feature.feed.FeedTheme
+import com.munch.reddit.theme.FeedThemePreset
 
 private const val WELCOME_ROUTE = "welcome"
 private const val SELECT_THEME_ROUTE = "select_theme"
@@ -45,6 +50,8 @@ fun AppNavHost(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val appPreferences = remember { AppPreferences(context) }
     val navController = rememberNavController()
+    var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
+    val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
 
     // Determine start destination based on onboarding completion
     val startDestination = if (appPreferences.hasCompletedOnboarding) {
@@ -53,219 +60,226 @@ fun AppNavHost(modifier: Modifier = Modifier) {
         WELCOME_ROUTE
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-        modifier = modifier
-    ) {
-        composable(WELCOME_ROUTE) {
-            WelcomeScreen(
-                onStartClick = {
-                    navController.navigate(SELECT_THEME_ROUTE) {
-                        popUpTo(WELCOME_ROUTE) { inclusive = true }
+    FeedTheme(feedThemePreset) {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = modifier
+        ) {
+            composable(WELCOME_ROUTE) {
+                WelcomeScreen(
+                    onStartClick = {
+                        navController.navigate(SELECT_THEME_ROUTE) {
+                            popUpTo(WELCOME_ROUTE) { inclusive = true }
+                        }
                     }
-                }
-            )
-        }
-
-        composable(SELECT_THEME_ROUTE) {
-            SelectThemeScreen(
-                initialThemeId = appPreferences.selectedTheme,
-                onThemeSelected = { themeId ->
-                    appPreferences.selectedTheme = themeId
-                    appPreferences.hasCompletedOnboarding = true
-                    navController.navigate(FEED_ROUTE) {
-                        popUpTo(SELECT_THEME_ROUTE) { inclusive = true }
-                    }
-                }
-            )
-        }
-        composable(FEED_ROUTE) { backStackEntry ->
-            RedditFeedRoute(
-                backStackEntry = backStackEntry,
-                onPostSelected = { post ->
-                    navController.navigate(detailRoute(post.permalink))
-                },
-                onImageSelected = { imageUrl ->
-                    navController.navigate(imagePreviewRoute(imageUrl))
-                },
-                onSearchClick = {
-                    navController.navigate(SEARCH_ROUTE)
-                },
-                onSettingsClick = {
-                    navController.navigate(SETTINGS_ROUTE)
-                }
-            )
-        }
-        composable(
-            route = DETAIL_ROUTE,
-            arguments = listOf(navArgument("permalink") { type = NavType.StringType }),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeIn(animationSpec = tween(200))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(200))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(200))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeOut(animationSpec = tween(200))
-            }
-        ) { backStackEntry ->
-            val permalink = backStackEntry.arguments?.getString("permalink")?.let(Uri::decode)
-            if (permalink != null) {
-                PostDetailRoute(
-                    navController = navController,
-                    permalink = permalink
                 )
-            } else {
-                navController.popBackStack()
             }
-        }
-        composable(
-            route = IMAGE_PREVIEW_ROUTE,
-            arguments = listOf(navArgument("imageUrl") { type = NavType.StringType }),
-            enterTransition = {
-                fadeIn(animationSpec = tween(300))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(200))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(200))
-            },
-            popExitTransition = {
-                fadeOut(animationSpec = tween(300))
-            }
-        ) { backStackEntry ->
-            val imageUrl = backStackEntry.arguments?.getString("imageUrl")?.let(Uri::decode)
-            if (imageUrl != null) {
-                ImagePreviewRoute(navController = navController, imageUrl = imageUrl)
-            } else {
-                navController.popBackStack()
-            }
-        }
-        composable(
-            route = SEARCH_ROUTE,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeIn(animationSpec = tween(200))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(200))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(200))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeOut(animationSpec = tween(200))
-            }
-        ) {
-            SearchRoute(
-                onBackClick = { navController.popBackStack() },
-                onSearchAllPosts = { query ->
-                    // Navigate back to feed with search query
-                    navController.popBackStack()
-                    runCatching {
-                        navController.getBackStackEntry(FEED_ROUTE).savedStateHandle["searchQuery"] = query
+
+            composable(SELECT_THEME_ROUTE) {
+                SelectThemeScreen(
+                    initialThemeId = feedThemeId,
+                    onThemeSelected = { themeId ->
+                        val normalized = themeId.lowercase()
+                        appPreferences.selectedTheme = normalized
+                        feedThemeId = normalized
+                        appPreferences.hasCompletedOnboarding = true
+                        navController.navigate(FEED_ROUTE) {
+                            popUpTo(SELECT_THEME_ROUTE) { inclusive = true }
+                        }
                     }
+                )
+            }
+            composable(FEED_ROUTE) { backStackEntry ->
+                RedditFeedRoute(
+                    backStackEntry = backStackEntry,
+                    onPostSelected = { post ->
+                        navController.navigate(detailRoute(post.permalink))
+                    },
+                    onImageSelected = { imageUrl ->
+                        navController.navigate(imagePreviewRoute(imageUrl))
+                    },
+                    onSearchClick = {
+                        navController.navigate(SEARCH_ROUTE)
+                    },
+                    onSettingsClick = {
+                        navController.navigate(SETTINGS_ROUTE)
+                    }
+                )
+            }
+            composable(
+                route = DETAIL_ROUTE,
+                arguments = listOf(navArgument("permalink") { type = NavType.StringType }),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(200))
                 },
-                onViewSubreddit = { subreddit ->
-                    navController.navigateToFeedSubreddit(subreddit)
+                exitTransition = {
+                    fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(200))
                 }
-            )
-        }
-        composable(
-            route = SETTINGS_ROUTE,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
+            ) { backStackEntry ->
+                val permalink = backStackEntry.arguments?.getString("permalink")?.let(Uri::decode)
+                if (permalink != null) {
+                    PostDetailRoute(
+                        navController = navController,
+                        permalink = permalink
                     )
-                ) + fadeIn(animationSpec = tween(200))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(200))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(200))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeOut(animationSpec = tween(200))
-            }
-        ) {
-            SettingsRoute(
-                onBack = { navController.popBackStack() },
-                onThemeClick = { navController.navigate(SETTINGS_THEME_ROUTE) }
-            )
-        }
-        composable(
-            route = SETTINGS_THEME_ROUTE,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeIn(animationSpec = tween(200))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(200))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(200))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeOut(animationSpec = tween(200))
-            }
-        ) {
-            SelectThemeScreen(
-                initialThemeId = appPreferences.selectedTheme,
-                onThemeSelected = { themeId ->
-                    appPreferences.selectedTheme = themeId
+                } else {
                     navController.popBackStack()
+                }
+            }
+            composable(
+                route = IMAGE_PREVIEW_ROUTE,
+                arguments = listOf(navArgument("imageUrl") { type = NavType.StringType }),
+                enterTransition = {
+                    fadeIn(animationSpec = tween(300))
                 },
-                onBack = { navController.popBackStack() }
-            )
+                exitTransition = {
+                    fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    fadeOut(animationSpec = tween(300))
+                }
+            ) { backStackEntry ->
+                val imageUrl = backStackEntry.arguments?.getString("imageUrl")?.let(Uri::decode)
+                if (imageUrl != null) {
+                    ImagePreviewRoute(navController = navController, imageUrl = imageUrl)
+                } else {
+                    navController.popBackStack()
+                }
+            }
+            composable(
+                route = SEARCH_ROUTE,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(200))
+                }
+            ) {
+                SearchRoute(
+                    onBackClick = { navController.popBackStack() },
+                    onSearchAllPosts = { query ->
+                        // Navigate back to feed with search query
+                        navController.popBackStack()
+                        runCatching {
+                            navController.getBackStackEntry(FEED_ROUTE).savedStateHandle["searchQuery"] =
+                                query
+                        }
+                    },
+                    onViewSubreddit = { subreddit ->
+                        navController.navigateToFeedSubreddit(subreddit)
+                    }
+                )
+            }
+            composable(
+                route = SETTINGS_ROUTE,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(200))
+                }
+            ) {
+                SettingsRoute(
+                    onBack = { navController.popBackStack() },
+                    onThemeClick = { navController.navigate(SETTINGS_THEME_ROUTE) }
+                )
+            }
+            composable(
+                route = SETTINGS_THEME_ROUTE,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(200))
+                }
+            ) {
+                SelectThemeScreen(
+                    initialThemeId = feedThemeId,
+                    onThemeSelected = { themeId ->
+                        val normalized = themeId.lowercase()
+                        appPreferences.selectedTheme = normalized
+                        feedThemeId = normalized
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
