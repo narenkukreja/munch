@@ -7,7 +7,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -79,6 +78,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -93,12 +93,16 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.composed
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -184,7 +188,6 @@ private fun PostDetailScreen(
     onSearchClick: () -> Unit,
     subredditOptions: List<String>
 ) {
-    val dragThreshold = 120f
     var showSubredditSheet by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -202,65 +205,11 @@ private fun PostDetailScreen(
         ?.lowercase()
         ?: "all"
 
-    val coroutineScope = rememberCoroutineScope()
-    val dragOffsetX = remember { Animatable(0f) }
-
     Scaffold(
+        containerColor = SpacerBackgroundColor,
         modifier = Modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
-            .offset { androidx.compose.ui.unit.IntOffset(dragOffsetX.value.toInt(), 0) }
-            .pointerInput(onBack, dragThreshold) {
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        // Reset on drag start
-                    },
-                    onDragEnd = {
-                        coroutineScope.launch {
-                            if (dragOffsetX.value > dragThreshold) {
-                                // Threshold crossed - complete the navigation
-                                dragOffsetX.animateTo(
-                                    targetValue = size.width.toFloat(),
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
-                                onBack()
-                                dragOffsetX.snapTo(0f)
-                            } else {
-                                // Didn't reach threshold - snap back
-                                dragOffsetX.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
-                            }
-                        }
-                    },
-                    onDragCancel = {
-                        coroutineScope.launch {
-                            dragOffsetX.animateTo(
-                                targetValue = 0f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )
-                        }
-                    }
-                ) { change, dragAmount ->
-                    if (dragAmount > 0f) {
-                        // Swipe right - interactive back gesture
-                        change.consume()
-                        coroutineScope.launch {
-                            val newOffset = (dragOffsetX.value + dragAmount).coerceAtLeast(0f)
-                            dragOffsetX.snapTo(newOffset)
-                        }
-                    }
-                }
-            },
+            .swipeToGoBack(onBack = onBack)
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
                 colors = TopAppBarDefaults.largeTopAppBarColors(
@@ -498,6 +447,60 @@ private fun PostDetailScreen(
         modifier = Modifier.padding(top = 16.dp, bottom = 16.dp),
         subredditIcons = uiState.subredditIcons
     )
+}
+
+private fun Modifier.swipeToGoBack(
+    onBack: () -> Unit,
+    edgeWidth: Dp = 24.dp,
+    dragThreshold: Dp = 96.dp,
+    velocityThreshold: Dp = 480.dp
+): Modifier = composed {
+    val density = LocalDensity.current
+    val currentOnBack by rememberUpdatedState(onBack)
+    val edgeWidthPx = with(density) { edgeWidth.toPx() }
+    val dragThresholdPx = with(density) { dragThreshold.toPx() }
+    val velocityThresholdPx = with(density) { velocityThreshold.toPx() }
+    val velocityTracker = remember { VelocityTracker() }
+
+    pointerInput(edgeWidthPx, dragThresholdPx, velocityThresholdPx) {
+        var dragStartedFromEdge = false
+        var netDrag = 0f
+        var hasTrackedVelocity = false
+
+        detectHorizontalDragGestures(
+            onDragStart = { offset ->
+                dragStartedFromEdge = offset.x <= edgeWidthPx
+                netDrag = 0f
+                hasTrackedVelocity = false
+                velocityTracker.resetTracking()
+            },
+            onHorizontalDrag = { change, dragAmount ->
+                if (!dragStartedFromEdge) return@detectHorizontalDragGestures
+                netDrag = (netDrag + dragAmount).coerceAtLeast(0f)
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                hasTrackedVelocity = true
+                change.consume()
+            },
+            onDragEnd = {
+                if (dragStartedFromEdge) {
+                    val velocity = if (hasTrackedVelocity) velocityTracker.calculateVelocity().x else 0f
+                    if (netDrag >= dragThresholdPx || velocity >= velocityThresholdPx) {
+                        currentOnBack()
+                    }
+                }
+                dragStartedFromEdge = false
+                netDrag = 0f
+                hasTrackedVelocity = false
+                velocityTracker.resetTracking()
+            },
+            onDragCancel = {
+                dragStartedFromEdge = false
+                netDrag = 0f
+                hasTrackedVelocity = false
+                velocityTracker.resetTracking()
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
