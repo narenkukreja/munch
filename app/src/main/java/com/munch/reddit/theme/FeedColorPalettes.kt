@@ -13,7 +13,8 @@ data class FeedColorPalette(
     val pinnedLabel: Color,
     val modLabel: Color,
     val opLabel: Color,
-    val visualModLabel: Color
+    val visualModLabel: Color,
+    val postBorder: Color? = null
 )
 
 private val wormiPalette = FeedColorPalette(
@@ -27,7 +28,8 @@ private val wormiPalette = FeedColorPalette(
     pinnedLabel = Color(0xFF2ECC71),
     modLabel = Color(0xFF2ECC71),
     opLabel = Color(0xFFFF5252),
-    visualModLabel = Color(0xFF2ECC71)
+    visualModLabel = Color(0xFF2ECC71),
+    postBorder = null
 )
 
 private val narwhalPalette = FeedColorPalette(
@@ -38,10 +40,11 @@ private val narwhalPalette = FeedColorPalette(
     title = Color(0xFFFFFFFF),
     subreddit = Color(0xFF3F5C7C),
     metaInfo = Color(0xFF747474),
-    pinnedLabel = Color(0xFF3F5C7C),
-    modLabel = Color(0xFF3F5C7C),
-    opLabel = Color(0xFF747474),
-    visualModLabel = Color(0xFF3F5C7C)
+    pinnedLabel = Color(0xFF2ECC71),
+    modLabel = Color(0xFF2ECC71),
+    opLabel = Color(0xFFFF5252),
+    visualModLabel = Color(0xFF2ECC71),
+    postBorder = Color(0xFF747474)
 )
 
 enum class FeedThemePreset(val palette: FeedColorPalette) {

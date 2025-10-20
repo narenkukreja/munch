@@ -111,6 +111,7 @@ import com.munch.reddit.feature.feed.ModLabelColor
 import com.munch.reddit.feature.feed.OpLabelColor
 import com.munch.reddit.feature.feed.PinnedLabelColor
 import com.munch.reddit.feature.feed.PostBackgroundColor
+import com.munch.reddit.feature.feed.SpacerBackgroundColor
 import com.munch.reddit.feature.feed.SubredditColor
 import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.feature.feed.VisualModColor
@@ -260,12 +261,11 @@ private fun PostDetailScreen(
                     }
                 }
             },
-        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             LargeTopAppBar(
                 colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = SpacerBackgroundColor,
+                    scrolledContainerColor = SpacerBackgroundColor,
                     titleContentColor = TitleColor,
                     navigationIconContentColor = TitleColor,
                     actionIconContentColor = TitleColor
@@ -547,6 +547,7 @@ private fun PostDetailContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(SpacerBackgroundColor)
             .padding(top = insetTop, bottom = insetBottom),
         state = listState,
         contentPadding = PaddingValues(top = spacing.lg, bottom = 80.dp)
@@ -558,7 +559,6 @@ private fun PostDetailContent(
                     color = PostBackgroundColor,
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -710,7 +710,6 @@ private fun CommentSortBar(
         color = PostBackgroundColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier
@@ -735,7 +734,7 @@ private fun CommentSortBar(
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = PostBackgroundColor,
                         labelColor = if (isSelected) TitleColor else MetaInfoColor,
                         selectedContainerColor = SubredditColor.copy(alpha = 0.22f),
                         selectedLabelColor = TitleColor
@@ -743,7 +742,7 @@ private fun CommentSortBar(
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = isSelected,
-                        borderColor = MaterialTheme.colorScheme.outlineVariant,
+                        borderColor = MetaInfoColor,
                         selectedBorderColor = SubredditColor
                     )
                 )
@@ -1213,7 +1212,10 @@ private fun RemoteRepliesItem(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier.background(SpacerBackgroundColor).fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
         LoadingIndicator()
     }
 }

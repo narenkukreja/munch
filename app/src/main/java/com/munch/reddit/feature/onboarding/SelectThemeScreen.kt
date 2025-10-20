@@ -216,7 +216,7 @@ private fun OnboardingPostPreview() {
 private fun SelectThemeScreenPreview() {
     MunchForRedditTheme {
         SelectThemeScreen(
-            initialThemeId = FeedThemePreset.Wormi.id,
+            initialThemeId = FeedThemePreset.Narwhal.id,
             onThemeSelected = {}
         )
     }

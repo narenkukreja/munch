@@ -349,8 +349,7 @@ private fun SubredditItem(
         if (isAll) {
             // Show ic_stack for "all" subreddit
             Box(
-                modifier = avatarModifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                modifier = avatarModifier,
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -369,8 +368,7 @@ private fun SubredditItem(
             )
         } else {
             Box(
-                modifier = avatarModifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                modifier = avatarModifier,
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -410,8 +408,7 @@ private fun SettingsItem(
         Box(
             modifier = Modifier
                 .size(28.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(

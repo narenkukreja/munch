@@ -1,5 +1,6 @@
 package com.munch.reddit.feature.feed
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -74,3 +75,8 @@ val VisualModColor: Color
     @Composable
     @ReadOnlyComposable
     get() = LocalFeedColorPalette.current.visualModLabel
+
+val PostBorderColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalFeedColorPalette.current.postBorder ?: MaterialTheme.colorScheme.outlineVariant

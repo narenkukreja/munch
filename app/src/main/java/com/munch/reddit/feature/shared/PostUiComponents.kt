@@ -564,7 +564,7 @@ fun InfoChip(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = PostBackgroundColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
         border = BorderStroke(1.dp, MetaInfoColor)
