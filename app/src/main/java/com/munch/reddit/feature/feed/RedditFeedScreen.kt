@@ -80,8 +80,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.Lifecycle
@@ -155,10 +153,7 @@ fun RedditFeedRoute(
 
     // Key the listState to subreddit - creates new instance per subreddit
     // BUT initialize with saved position from ViewModel
-    val listState = rememberSaveable(
-        inputs = arrayOf(uiState.selectedSubreddit),
-        saver = LazyListState.Saver
-    ) {
+    val listState = remember(uiState.selectedSubreddit) {
         val savedPos = viewModel.getScrollPosition(uiState.selectedSubreddit)
         LazyListState(
             firstVisibleItemIndex = savedPos?.firstVisibleItemIndex ?: 0,
@@ -341,10 +336,7 @@ fun RedditFeedScreen(
             val previousFeed = viewModel?.getPreviousSubredditFeed()
             if (viewModel != null && previousSubreddit != null && previousFeed != null) {
                 val previousScrollPos = viewModel.getScrollPosition(previousSubreddit)
-                val previousListState = rememberSaveable(
-                    previousSubreddit,
-                    saver = LazyListState.Saver
-                ) {
+                val previousListState = remember(previousSubreddit) {
                     LazyListState(
                         firstVisibleItemIndex = previousScrollPos?.firstVisibleItemIndex ?: 0,
                         firstVisibleItemScrollOffset = previousScrollPos?.firstVisibleItemScrollOffset ?: 0
