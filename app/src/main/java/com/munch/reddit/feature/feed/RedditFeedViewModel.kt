@@ -58,6 +58,12 @@ class RedditFeedViewModel(
     private val subredditStack = mutableListOf<String>(availableSubreddits.first())
     // Scroll position cache per subreddit
     private val scrollPositionCache = mutableMapOf<String, ScrollPosition>()
+    private val subredditSortState = mutableMapOf(
+        availableSubreddits.first().lowercase() to SortState(
+            sort = FeedSortOption.HOT,
+            topTimeRange = TopTimeRange.DAY
+        )
+    )
 
     data class ScrollPosition(
         val firstVisibleItemIndex: Int = 0,
@@ -68,6 +74,11 @@ class RedditFeedViewModel(
         val posts: List<RedditPost>,
         val nextPageToken: String?,
         val hasMore: Boolean,
+        val sort: FeedSortOption,
+        val topTimeRange: TopTimeRange
+    )
+
+    private data class SortState(
         val sort: FeedSortOption,
         val topTimeRange: TopTimeRange
     )
@@ -110,6 +121,8 @@ class RedditFeedViewModel(
     fun refresh(limit: Int = DEFAULT_LIMIT, clearExisting: Boolean = false) {
         nextPageToken = null
         isLoadingNextPage = false
+        subredditSortState[currentSubreddit.lowercase()] =
+            SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         viewModelScope.launch {
             _uiState.update { state ->
                 val initialPosts = if (clearExisting) emptyList() else state.posts
@@ -240,14 +253,22 @@ class RedditFeedViewModel(
             ?: subreddit.lowercase()
         if (target.equals(currentSubreddit, ignoreCase = true)) return
         enqueueIconFetch(target)
+        subredditSortState[currentSubreddit.lowercase()] =
+            SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         currentSubreddit = target
+        currentSortOption = FeedSortOption.HOT
+        currentTopTimeRange = TopTimeRange.DAY
+        nextPageToken = null
+        isLoadingNextPage = false
+        subredditSortState[target.lowercase()] =
+            SortState(sort = FeedSortOption.HOT, topTimeRange = TopTimeRange.DAY)
         // Push to navigation stack
         subredditStack.add(target)
         // When going forward, clear saved scroll position for fresh start
         scrollPositionCache.remove(target.lowercase())
         // If we have a cached feed for this subreddit with current sort/time, use it
         val cached = feedCache[cacheKey(subreddit = currentSubreddit)]
-        if (cached != null) {
+        if (cached != null && cached.sort == FeedSortOption.HOT && cached.topTimeRange == TopTimeRange.DAY) {
             nextPageToken = cached.nextPageToken
             _uiState.update { state ->
                 state.copy(
@@ -256,8 +277,8 @@ class RedditFeedViewModel(
                     errorMessage = null,
                     posts = cached.posts,
                     selectedSubreddit = currentSubreddit,
-                    selectedSort = cached.sort,
-                    selectedTopTimeRange = cached.topTimeRange,
+                    selectedSort = FeedSortOption.HOT,
+                    selectedTopTimeRange = TopTimeRange.DAY,
                     hasMore = cached.hasMore,
                     scrollPosition = null  // Clear scroll position when going forward
                 )
@@ -270,18 +291,28 @@ class RedditFeedViewModel(
     fun navigateBack(): Boolean {
         // Can't go back if we're at the base (r/all)
         if (subredditStack.size <= 1) return false
+        subredditSortState[currentSubreddit.lowercase()] =
+            SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         // Pop current subreddit
         subredditStack.removeLastOrNull()
         // Get the previous subreddit
         val previousSubreddit = subredditStack.lastOrNull() ?: return false
         enqueueIconFetch(previousSubreddit)
         currentSubreddit = previousSubreddit
+        val restoredSortState = subredditSortState[previousSubreddit.lowercase()]
+            ?: SortState(sort = FeedSortOption.HOT, topTimeRange = TopTimeRange.DAY)
+        currentSortOption = restoredSortState.sort
+        currentTopTimeRange = restoredSortState.topTimeRange
         // Get saved scroll position for the previous subreddit
         val savedScrollPosition = getScrollPosition(currentSubreddit)
         // Set navigating back flag for animation
         _uiState.update { it.copy(isNavigatingBack = true) }
         // Load the previous subreddit from cache or fetch
-        val cached = feedCache[cacheKey(subreddit = currentSubreddit)]
+        val cached = feedCache[cacheKey(
+            subreddit = currentSubreddit,
+            sort = currentSortOption,
+            top = currentTopTimeRange
+        )]
         if (cached != null) {
             nextPageToken = cached.nextPageToken
             _uiState.update { state ->
@@ -291,8 +322,8 @@ class RedditFeedViewModel(
                     errorMessage = null,
                     posts = cached.posts,
                     selectedSubreddit = currentSubreddit,
-                    selectedSort = cached.sort,
-                    selectedTopTimeRange = cached.topTimeRange,
+                    selectedSort = currentSortOption,
+                    selectedTopTimeRange = currentTopTimeRange,
                     hasMore = cached.hasMore,
                     scrollPosition = savedScrollPosition,
                     isNavigatingBack = false
@@ -310,6 +341,8 @@ class RedditFeedViewModel(
             return
         }
         currentSortOption = sortOption
+        subredditSortState[currentSubreddit.lowercase()] =
+            SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         refresh()
     }
 
@@ -318,6 +351,8 @@ class RedditFeedViewModel(
             return
         }
         currentTopTimeRange = timeRange
+        subredditSortState[currentSubreddit.lowercase()] =
+            SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         if (currentSortOption == FeedSortOption.TOP) {
             refresh()
         } else {
@@ -412,7 +447,13 @@ class RedditFeedViewModel(
 
     fun getPreviousSubredditFeed(): List<RedditPost>? {
         val prevSubreddit = getPreviousSubreddit() ?: return null
-        val cached = feedCache[cacheKey(subreddit = prevSubreddit)]
+        val sortState = subredditSortState[prevSubreddit.lowercase()]
+            ?: SortState(sort = FeedSortOption.HOT, topTimeRange = TopTimeRange.DAY)
+        val cached = feedCache[cacheKey(
+            subreddit = prevSubreddit,
+            sort = sortState.sort,
+            top = sortState.topTimeRange
+        )]
         return cached?.posts
     }
 
