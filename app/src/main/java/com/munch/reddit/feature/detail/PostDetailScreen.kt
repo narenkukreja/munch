@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -93,7 +94,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.consumePositionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
@@ -103,8 +104,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.composed
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.navigation.NavController
 import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
@@ -136,6 +139,7 @@ import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -208,7 +212,10 @@ private fun PostDetailScreen(
     Scaffold(
         containerColor = SpacerBackgroundColor,
         modifier = Modifier
-            .swipeToGoBack(onBack = onBack)
+            .swipeToGoBack(
+                onBack = onBack,
+                restrictToEdge = false
+            )
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
@@ -452,55 +459,83 @@ private fun PostDetailScreen(
 private fun Modifier.swipeToGoBack(
     onBack: () -> Unit,
     edgeWidth: Dp = 24.dp,
-    dragThreshold: Dp = 96.dp,
-    velocityThreshold: Dp = 480.dp
+    triggerDistance: Dp = 96.dp,
+    restrictToEdge: Boolean = true
 ): Modifier = composed {
     val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
-    val edgeWidthPx = with(density) { edgeWidth.toPx() }
-    val dragThresholdPx = with(density) { dragThreshold.toPx() }
-    val velocityThresholdPx = with(density) { velocityThreshold.toPx() }
-    val velocityTracker = remember { VelocityTracker() }
+    val dragOffset = remember { Animatable(0f) }
+    val edgeWidthPx = if (restrictToEdge) with(density) { edgeWidth.toPx() } else Float.POSITIVE_INFINITY
+    val triggerDistancePx = with(density) { triggerDistance.toPx() }
+    var dragStartedOnEdge by remember { mutableStateOf(false) }
+    var dragJob by remember { mutableStateOf<Job?>(null) }
 
-    pointerInput(edgeWidthPx, dragThresholdPx, velocityThresholdPx) {
-        var dragStartedFromEdge = false
-        var netDrag = 0f
-        var hasTrackedVelocity = false
-
-        detectHorizontalDragGestures(
-            onDragStart = { offset ->
-                dragStartedFromEdge = offset.x <= edgeWidthPx
-                netDrag = 0f
-                hasTrackedVelocity = false
-                velocityTracker.resetTracking()
-            },
-            onHorizontalDrag = { change, dragAmount ->
-                if (!dragStartedFromEdge) return@detectHorizontalDragGestures
-                netDrag = (netDrag + dragAmount).coerceAtLeast(0f)
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                hasTrackedVelocity = true
-                change.consume()
-            },
-            onDragEnd = {
-                if (dragStartedFromEdge) {
-                    val velocity = if (hasTrackedVelocity) velocityTracker.calculateVelocity().x else 0f
-                    if (netDrag >= dragThresholdPx || velocity >= velocityThresholdPx) {
-                        currentOnBack()
-                    }
-                }
-                dragStartedFromEdge = false
-                netDrag = 0f
-                hasTrackedVelocity = false
-                velocityTracker.resetTracking()
-            },
-            onDragCancel = {
-                dragStartedFromEdge = false
-                netDrag = 0f
-                hasTrackedVelocity = false
-                velocityTracker.resetTracking()
-            }
-        )
+    fun resetOffset() {
+        dragJob?.cancel()
+        dragJob = null
+        scope.launch {
+            dragOffset.stop()
+            dragOffset.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+        }
     }
+
+    this
+        .offset { IntOffset(dragOffset.value.roundToInt(), 0) }
+        .pointerInput(edgeWidthPx, triggerDistancePx) {
+            detectHorizontalDragGestures(
+                onDragStart = { offset ->
+                    dragStartedOnEdge = offset.x <= edgeWidthPx
+                },
+                onHorizontalDrag = { change, dragAmount ->
+                    if (!dragStartedOnEdge || dragAmount <= 0f) return@detectHorizontalDragGestures
+                    change.consumePositionChange()
+                    dragJob?.cancel()
+                    val job = scope.launch {
+                        val newOffset = (dragOffset.value + dragAmount).coerceAtLeast(0f)
+                        dragOffset.snapTo(newOffset)
+                    }
+                    dragJob = job
+                },
+                onDragEnd = {
+                    val shouldNavigateBack = dragStartedOnEdge && dragOffset.value >= triggerDistancePx
+                    dragJob?.cancel()
+                    dragJob = null
+                    scope.launch {
+                        dragOffset.stop()
+                        if (shouldNavigateBack) {
+                            dragOffset.animateTo(
+                                targetValue = triggerDistancePx * 1.1f,
+                                animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)
+                            )
+                            currentOnBack()
+                            dragOffset.snapTo(0f)
+                        } else {
+                            dragOffset.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
+                        }
+                    }
+                    dragStartedOnEdge = false
+                },
+                onDragCancel = {
+                    dragStartedOnEdge = false
+                    dragJob?.cancel()
+                    dragJob = null
+                    resetOffset()
+                }
+            )
+        }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
