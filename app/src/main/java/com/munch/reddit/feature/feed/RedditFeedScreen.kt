@@ -123,7 +123,6 @@ import com.munch.reddit.feature.shared.formatRelativeTime
 import com.munch.reddit.feature.shared.LinkifiedText
 import com.munch.reddit.feature.shared.parseHtmlText
 import com.munch.reddit.feature.shared.openLinkInCustomTab
-import com.munch.reddit.feature.shared.openYouTubeVideo
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -145,6 +144,7 @@ fun RedditFeedRoute(
     viewModel: RedditFeedViewModel = koinViewModel(),
     onPostSelected: (RedditPost) -> Unit,
     onImageSelected: (String) -> Unit,
+    onYouTubeSelected: (String) -> Unit,
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {}
 ) {
@@ -265,6 +265,7 @@ fun RedditFeedRoute(
         listState = listState,
         onSwipeBack = { handleBackAttempt() },
         onImageClick = onImageSelected,
+        onYouTubeSelected = onYouTubeSelected,
         onLoadMore = { viewModel.loadMore() },
         isAppending = uiState.isAppending,
         canLoadMore = uiState.hasMore,
@@ -290,6 +291,7 @@ fun RedditFeedScreen(
     listState: LazyListState? = null,
     onSwipeBack: () -> Unit = {},
     onImageClick: (String) -> Unit = {},
+    onYouTubeSelected: (String) -> Unit = {},
     onLoadMore: () -> Unit = {},
     isAppending: Boolean = false,
     canLoadMore: Boolean = true,
@@ -356,6 +358,7 @@ fun RedditFeedScreen(
                     listState = previousListState,
                     onSwipeBack = {},
                     onImageClick = {},
+                    onYouTubeSelected = {},
                     onOpenSideSheet = {},
                     onLoadMore = {},
                     isAppending = false,
@@ -384,6 +387,7 @@ fun RedditFeedScreen(
                     listState = feedListState,
                     onSwipeBack = onSwipeBack,
                     onImageClick = onImageClick,
+                    onYouTubeSelected = onYouTubeSelected,
                     onOpenSideSheet = { showSubredditSheet = true },
                     onLoadMore = onLoadMore,
                     isAppending = isAppending,
@@ -651,6 +655,7 @@ private fun PostList(
     listState: LazyListState,
     onSwipeBack: () -> Unit,
     onImageClick: (String) -> Unit,
+    onYouTubeSelected: (String) -> Unit,
     onOpenSideSheet: () -> Unit,
     onLoadMore: () -> Unit,
     isAppending: Boolean,
@@ -795,6 +800,7 @@ private fun PostList(
                     onSubredditTapped = onSubredditTapped,
                     onPostSelected = onPostSelected,
                     onImageClick = onImageClick,
+                    onYouTubeSelected = onYouTubeSelected,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -826,6 +832,7 @@ internal fun RedditPostItem(
     onSubredditTapped: () -> Unit,
     onPostSelected: (RedditPost) -> Unit,
     onImageClick: (String) -> Unit,
+    onYouTubeSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -949,19 +956,7 @@ internal fun RedditPostItem(
                 onYoutubeClick = { videoId, url ->
                     val youtube = post.media as? RedditPostMedia.YouTube
                     val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
-                    val targetUrl = when {
-                        url.isNotBlank() -> url
-                        youtube?.watchUrl?.isNotBlank() == true -> youtube.watchUrl
-                        id.isNotBlank() -> "https://www.youtube.com/watch?v=$id"
-                        else -> ""
-                    }
-                    if (id.isNotBlank() || targetUrl.isNotBlank()) {
-                        openYouTubeVideo(
-                            context = context,
-                            videoId = id,
-                            watchUrl = targetUrl.ifBlank { "https://www.youtube.com/watch?v=$id" }
-                        )
-                    }
+                    if (id.isNotBlank()) onYouTubeSelected(id)
                 }
             )
 
@@ -1076,6 +1071,7 @@ private fun RedditPostItemPreview() {
                 onSubredditTapped = {},
                 onPostSelected = {},
                 onImageClick = {},
+                onYouTubeSelected = {},
                 modifier = Modifier.fillMaxWidth()
             )
         }

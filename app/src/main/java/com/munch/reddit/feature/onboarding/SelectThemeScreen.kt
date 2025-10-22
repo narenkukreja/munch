@@ -207,6 +207,7 @@ private fun OnboardingPostPreview() {
         onSubredditTapped = {},
         onPostSelected = {},
         onImageClick = {},
+        onYouTubeSelected = {},
         modifier = Modifier.fillMaxWidth()
     )
 }

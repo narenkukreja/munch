@@ -169,6 +169,7 @@ fun PostDetailRoute(
         onLoadMoreReplies = viewModel::loadMoreReplies,
         onOpenSubreddit = { subreddit -> navController.navigateToFeedSubreddit(subreddit) },
         onOpenImage = { imageUrl -> navController.navigate(imagePreviewRoute(imageUrl)) },
+        onOpenYouTube = { videoId -> navController.navigate(com.munch.reddit.navigation.youtubePlayerRoute(videoId)) },
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { navController.navigate("search") },
         onSettingsClick = { navController.navigate("settings") },
@@ -201,6 +202,10 @@ fun PostDetailActivityContent(
         onLoadMoreReplies = viewModel::loadMoreReplies,
         onOpenSubreddit = { /* no-op */ },
         onOpenImage = { imageUrl -> openLinkInCustomTab(context, imageUrl) },
+        onOpenYouTube = { videoId ->
+            // Fallback for standalone activity: open in browser/app
+            openYouTubeVideo(context, videoId, "https://www.youtube.com/watch?v=$videoId")
+        },
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { /* no-op in standalone activity */ },
         onSettingsClick = { /* no-op */ },
@@ -222,6 +227,7 @@ private fun PostDetailScreen(
     onLoadMoreReplies: (String) -> Unit,
     onOpenSubreddit: (String) -> Unit,
     onOpenImage: (String) -> Unit,
+    onOpenYouTube: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -313,6 +319,7 @@ private fun PostDetailScreen(
                             onLoadMoreReplies = onLoadMoreReplies,
                             onOpenSubreddit = onOpenSubreddit,
                             onOpenImage = onOpenImage,
+                            onOpenYouTube = onOpenYouTube,
                             onOpenLink = onOpenLink,
                             isAppendingComments = uiState.isAppending,
                             canLoadMoreComments = uiState.hasMoreComments,
@@ -590,6 +597,7 @@ private fun PostDetailContent(
     onLoadMoreReplies: (String) -> Unit,
     onOpenSubreddit: (String) -> Unit,
     onOpenImage: (String) -> Unit,
+    onOpenYouTube: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     isAppendingComments: Boolean,
     canLoadMoreComments: Boolean,
@@ -652,14 +660,7 @@ private fun PostDetailContent(
                             onImageClick = onOpenImage,
                             onYoutubeClick = { videoId, url ->
                                 val id = videoId.ifBlank { Uri.parse(url).getQueryParameter("v") ?: "" }
-                                val watchUrl = when {
-                                    url.isNotBlank() -> url
-                                    id.isNotBlank() -> "https://www.youtube.com/watch?v=$id"
-                                    else -> ""
-                                }
-                                if (id.isNotBlank() || watchUrl.isNotBlank()) {
-                                    openYouTubeVideo(context, id, watchUrl.ifBlank { "https://www.youtube.com/watch?v=$id" })
-                                }
+                                if (id.isNotBlank()) onOpenYouTube(id)
                             }
                         )
                         PostHeader(
@@ -1449,6 +1450,7 @@ private fun PostDetailScreenPreview() {
             onLoadMoreReplies = {},
             onOpenSubreddit = {},
             onOpenImage = {},
+            onOpenYouTube = {},
             onOpenLink = {},
             onSearchClick = {},
             subredditOptions = SubredditCatalog.defaultSubreddits,
@@ -1475,6 +1477,7 @@ private fun PostDetailScreenLoadingPreview() {
                 onLoadMoreReplies = {},
                 onOpenSubreddit = {},
                 onOpenImage = {},
+                onOpenYouTube = {},
                 onOpenLink = {},
                 onSearchClick = {},
                 subredditOptions = SubredditCatalog.defaultSubreddits,
@@ -1500,6 +1503,7 @@ private fun PostDetailScreenErrorPreview() {
             onLoadMoreReplies = {},
             onOpenSubreddit = {},
             onOpenImage = {},
+            onOpenYouTube = {},
             onOpenLink = {},
             onSearchClick = {},
             subredditOptions = SubredditCatalog.defaultSubreddits,

@@ -40,12 +40,14 @@ private const val SELECT_THEME_ROUTE = "select_theme"
 private const val FEED_ROUTE = "feed"
 private const val DETAIL_ROUTE = "detail/{permalink}"
 private const val IMAGE_PREVIEW_ROUTE = "image_preview/{imageUrl}"
+private const val YOUTUBE_PLAYER_ROUTE = "youtube/{videoId}"
 private const val SEARCH_ROUTE = "search"
 private const val SETTINGS_ROUTE = "settings"
 private const val SETTINGS_THEME_ROUTE = "settings_theme"
 
 fun detailRoute(permalink: String): String = "detail/${Uri.encode(permalink)}"
 fun imagePreviewRoute(imageUrl: String): String = "image_preview/${Uri.encode(imageUrl)}"
+fun youtubePlayerRoute(videoId: String): String = "youtube/${Uri.encode(videoId)}"
 
 @Composable
 fun AppNavHost(modifier: Modifier = Modifier) {
@@ -100,6 +102,9 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     },
                     onImageSelected = { imageUrl ->
                         navController.navigate(imagePreviewRoute(imageUrl))
+                    },
+                    onYouTubeSelected = { videoId ->
+                        navController.navigate(youtubePlayerRoute(videoId))
                     },
                     onSearchClick = {
                         navController.navigate(SEARCH_ROUTE)
@@ -166,6 +171,24 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                 val imageUrl = backStackEntry.arguments?.getString("imageUrl")?.let(Uri::decode)
                 if (imageUrl != null) {
                     ImagePreviewRoute(navController = navController, imageUrl = imageUrl)
+                } else {
+                    navController.popBackStack()
+                }
+            }
+            composable(
+                route = YOUTUBE_PLAYER_ROUTE,
+                arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
+                enterTransition = { fadeIn(animationSpec = tween(300)) },
+                exitTransition = { fadeOut(animationSpec = tween(200)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+                popExitTransition = { fadeOut(animationSpec = tween(300)) }
+            ) { backStackEntry ->
+                val videoId = backStackEntry.arguments?.getString("videoId")?.let(Uri::decode)
+                if (videoId != null) {
+                    com.munch.reddit.feature.shared.YouTubePlayerRoute(
+                        navController = navController,
+                        videoId = videoId
+                    )
                 } else {
                     navController.popBackStack()
                 }
