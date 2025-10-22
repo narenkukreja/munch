@@ -36,6 +36,7 @@
                     android:scheme="com.munch.reddit" />
             </intent-filter>
         </activity>
+        
     </application>
 
 </manifest>

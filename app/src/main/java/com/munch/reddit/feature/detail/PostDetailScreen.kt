@@ -113,6 +113,7 @@ import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.domain.model.RedditPostMedia
 import com.munch.reddit.R
+import com.munch.reddit.domain.model.RedditComment
 import com.munch.reddit.feature.feed.MetaInfoColor
 import com.munch.reddit.feature.feed.ModLabelColor
 import com.munch.reddit.feature.feed.OpLabelColor
@@ -170,6 +171,39 @@ fun PostDetailRoute(
         onOpenImage = { imageUrl -> navController.navigate(imagePreviewRoute(imageUrl)) },
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { navController.navigate("search") },
+        onSettingsClick = { navController.navigate("settings") },
+        subredditOptions = SubredditCatalog.defaultSubreddits
+    )
+}
+
+/**
+ * Lightweight host for displaying PostDetailScreen outside the app NavHost (e.g., in a standalone Activity).
+ * Reuses the same ViewModel and UI, but lets callers decide how to handle back navigation.
+ */
+@Composable
+fun PostDetailActivityContent(
+    permalink: String,
+    onBack: () -> Unit
+) {
+    val viewModel: PostDetailViewModel = koinViewModel(parameters = { parametersOf(permalink) })
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    PostDetailScreen(
+        uiState = uiState,
+        onBack = onBack,
+        onRetry = viewModel::refresh,
+        onSelectSort = viewModel::selectSort,
+        onToggleComment = viewModel::toggleComment,
+        onUserLoadMoreComments = viewModel::userLoadMoreComments,
+        onAutoLoadMoreComments = viewModel::loadMoreComments,
+        onLoadRemoteReplies = viewModel::loadMoreRemoteReplies,
+        onLoadMoreReplies = viewModel::loadMoreReplies,
+        onOpenSubreddit = { /* no-op */ },
+        onOpenImage = { imageUrl -> openLinkInCustomTab(context, imageUrl) },
+        onOpenLink = { url -> openLinkInCustomTab(context, url) },
+        onSearchClick = { /* no-op in standalone activity */ },
+        onSettingsClick = { /* no-op */ },
         subredditOptions = SubredditCatalog.defaultSubreddits
     )
 }
@@ -190,6 +224,7 @@ private fun PostDetailScreen(
     onOpenImage: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     subredditOptions: List<String>
 ) {
     var showSubredditSheet by remember { mutableStateOf(false) }
@@ -452,7 +487,8 @@ private fun PostDetailScreen(
         onDismissRequest = { showSubredditSheet = false },
         onSearchClick = onSearchClick,
         modifier = Modifier.padding(top = 16.dp, bottom = 16.dp),
-        subredditIcons = uiState.subredditIcons
+        subredditIcons = uiState.subredditIcons,
+        onSettingsClick = onSettingsClick
     )
 }
 
@@ -975,6 +1011,8 @@ private fun CommentItem(
     onOpenLink: (String) -> Unit
 ) {
     val comment = node.comment
+    val flairText = comment.authorFlairText?.takeIf { it.isNotBlank() }
+    var showFlairDialog by remember { mutableStateOf(false) }
     val headerInteraction = remember { MutableInteractionSource() }
     val spacing = MaterialSpacing
     val parentVerticalPadding = spacing.sm * 0.5f
@@ -1023,14 +1061,17 @@ private fun CommentItem(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
-                    val flairText = comment.authorFlairText?.takeIf { it.isNotBlank() }
                     if (flairText != null) {
                         Surface(
                             color = FlairBackgroundColor,
                             contentColor = Color.White,
                             shape = RoundedCornerShape(6.dp),
                             tonalElevation = 0.dp,
-                            shadowElevation = 0.dp
+                            shadowElevation = 0.dp,
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showFlairDialog = true }
                         ) {
                             Text(
                                 text = flairText,
@@ -1120,6 +1161,24 @@ private fun CommentItem(
                 )
             }
         }
+    }
+    if (showFlairDialog && flairText != null) {
+        AlertDialog(
+            onDismissRequest = { showFlairDialog = false },
+            title = { Text(text = "User flair", color = TitleColor) },
+            text = {
+                Text(
+                    text = flairText,
+                    color = TitleColor,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showFlairDialog = false }) {
+                    Text(text = "Close", color = SubredditColor)
+                }
+            }
+        )
     }
 }
 
@@ -1322,7 +1381,7 @@ private fun PostDetailScreenPreview() {
             commentCount = 56,
             score = 1234,
             createdUtc = System.currentTimeMillis() / 1000,
-            media = com.munch.reddit.domain.model.RedditPostMedia.Image(
+            media = RedditPostMedia.Image(
                 url = "https://placekitten.com/800/600",
                 width = 800,
                 height = 600
@@ -1331,7 +1390,7 @@ private fun PostDetailScreenPreview() {
             isNsfw = false
         )
 
-        val comment1 = com.munch.reddit.domain.model.RedditComment(
+        val comment1 = RedditComment(
             id = "c1",
             parentId = "t3_t3_preview",
             author = "commenter1",
@@ -1339,7 +1398,7 @@ private fun PostDetailScreenPreview() {
             score = 120,
             createdUtc = System.currentTimeMillis() / 1000 - 3600
         )
-        val comment2 = com.munch.reddit.domain.model.RedditComment(
+        val comment2 = RedditComment(
             id = "c2",
             parentId = "t3_t3_preview",
             author = "AutoModerator",
@@ -1392,7 +1451,8 @@ private fun PostDetailScreenPreview() {
             onOpenImage = {},
             onOpenLink = {},
             onSearchClick = {},
-            subredditOptions = SubredditCatalog.defaultSubreddits
+            subredditOptions = SubredditCatalog.defaultSubreddits,
+            onSettingsClick = {}
         )
         }
     }
@@ -1417,7 +1477,8 @@ private fun PostDetailScreenLoadingPreview() {
                 onOpenImage = {},
                 onOpenLink = {},
                 onSearchClick = {},
-                subredditOptions = SubredditCatalog.defaultSubreddits
+                subredditOptions = SubredditCatalog.defaultSubreddits,
+                onSettingsClick = {}
             )
         }
     }
@@ -1441,7 +1502,8 @@ private fun PostDetailScreenErrorPreview() {
             onOpenImage = {},
             onOpenLink = {},
             onSearchClick = {},
-            subredditOptions = SubredditCatalog.defaultSubreddits
+            subredditOptions = SubredditCatalog.defaultSubreddits,
+            onSettingsClick = {}
         )
     }
 }
