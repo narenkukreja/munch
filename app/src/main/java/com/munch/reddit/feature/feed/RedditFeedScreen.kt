@@ -450,6 +450,13 @@ fun RedditFeedScreen(
                                 iconSize = 20.dp
                             ),
                             FloatingToolbarButton(
+                                icon = ImageVector.vectorResource(id = R.drawable.ic_tiktok),
+                                contentDescription = "TikTok mode",
+                                onClick = onVideoFeedClick,
+                                iconTint = SubredditColor,
+                                iconSize = 20.dp
+                            ),
+                            FloatingToolbarButton(
                                 icon = Icons.Default.Menu,
                                 contentDescription = "Browse subreddits",
                                 onClick = { showSubredditSheet = true },
@@ -514,13 +521,6 @@ private fun RedditTopBar(
         ),
         scrollBehavior = scrollBehavior,
         actions = {
-            IconButton(onClick = onVideoFeedClick) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_tiktok),
-                    contentDescription = "TikTok mode",
-                    tint = TitleColor
-                )
-            }
             IconButton(onClick = { isFilterMenuExpanded = true }) {
                 Icon(
                     imageVector = Icons.Filled.Tune,

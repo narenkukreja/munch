@@ -66,13 +66,7 @@ fun WelcomeScreen(
 
             // Developer Credit
             Text(
-                text = "Developed by Naren <3",
-                fontSize = 16.sp,
-                color = TitleColor.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Icon inspired by Ridhi <3",
+                text = "Developed by naren.k",
                 fontSize = 16.sp,
                 color = TitleColor.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center

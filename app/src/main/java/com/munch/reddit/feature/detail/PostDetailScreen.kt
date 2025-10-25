@@ -126,6 +126,7 @@ import com.munch.reddit.feature.feed.VisualModColor
 import com.munch.reddit.feature.shared.FloatingToolbar
 import com.munch.reddit.feature.shared.FloatingToolbarButton
 import com.munch.reddit.feature.shared.InfoChip
+import coil.compose.AsyncImage
 import com.munch.reddit.feature.shared.LinkifiedText
 import com.munch.reddit.feature.shared.RedditPostMediaContent
 import com.munch.reddit.feature.shared.SubredditSideSheet
@@ -326,7 +327,8 @@ private fun PostDetailScreen(
                             isRefreshingComments = uiState.isRefreshingComments,
                             pendingRemoteReplyCount = uiState.pendingRemoteReplyCount,
                             autoFetchRemaining = uiState.autoFetchRemaining,
-                            listState = listState
+                            listState = listState,
+                            flairEmojiLookup = uiState.flairEmojiLookup
                         )
 
                         // Floating Toolbar
@@ -495,6 +497,7 @@ private fun PostDetailScreen(
         onSearchClick = onSearchClick,
         modifier = Modifier.padding(top = 16.dp, bottom = 16.dp),
         subredditIcons = uiState.subredditIcons,
+        exploreSubreddits = SubredditCatalog.exploreSubreddits,
         onSettingsClick = onSettingsClick
     )
 }
@@ -604,7 +607,8 @@ private fun PostDetailContent(
     isRefreshingComments: Boolean,
     pendingRemoteReplyCount: Int,
     autoFetchRemaining: Int,
-    listState: LazyListState
+    listState: LazyListState,
+    flairEmojiLookup: Map<String, String>
 ) {
     val context = LocalContext.current
 
@@ -724,7 +728,8 @@ private fun PostDetailContent(
                         onToggleComment = onToggleComment,
                         onOpenSubreddit = onOpenSubreddit,
                         onOpenImage = onOpenImage,
-                        onOpenLink = onOpenLink
+                        onOpenLink = onOpenLink,
+                        flairEmojiLookup = flairEmojiLookup
                     )
                     is PostDetailViewModel.CommentListItem.LoadMoreRepliesNode -> LoadMoreRepliesItem(
                         node = item,
@@ -1009,7 +1014,8 @@ private fun CommentItem(
     onToggleComment: (String) -> Unit,
     onOpenSubreddit: (String) -> Unit,
     onOpenImage: (String) -> Unit,
-    onOpenLink: (String) -> Unit
+    onOpenLink: (String) -> Unit,
+    flairEmojiLookup: Map<String, String>
 ) {
     val comment = node.comment
     val flairText = comment.authorFlairText?.takeIf { it.isNotBlank() }
@@ -1075,14 +1081,55 @@ private fun CommentItem(
                                 indication = null
                             ) { showFlairDialog = true }
                         ) {
-                            Text(
-                                text = flairText,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Extract emoji URL and display text from richtext if available
+                                val (emojiUrl, displayText) = remember(comment.authorFlairRichtext, flairText, flairEmojiLookup) {
+                                    val richtext = comment.authorFlairRichtext
+                                    if (!richtext.isNullOrEmpty()) {
+                                        // Get emoji URL directly from richtext
+                                        val emoji = richtext.firstOrNull { it.type == "emoji" }
+                                        val url = emoji?.url
+
+                                        // Get display text from text parts in richtext
+                                        val text = richtext
+                                            .filter { it.type == "text" }
+                                            .mapNotNull { it.text }
+                                            .joinToString("")
+                                            .trim()
+
+                                        Pair(url, text.ifBlank { flairText })
+                                    } else {
+                                        // Fallback to old method using lookup
+                                        val cleaned = flairText.replace(Regex(":[^:\\s]+:"), "").trim()
+                                        val alias = Regex(":[^\\s]+:").find(flairText)?.value?.lowercase()
+                                        val key = flairText.lowercase()
+                                        val altKey = cleaned.lowercase()
+                                        val url = alias?.let { flairEmojiLookup[it] }
+                                            ?: flairEmojiLookup[altKey]
+                                            ?: flairEmojiLookup[key]
+                                        Pair(url, cleaned.ifBlank { flairText })
+                                    }
+                                }
+
+                                if (!emojiUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = emojiUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Text(
+                                    text = displayText,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                     if (node.isAutoModerator) {
@@ -1169,11 +1216,52 @@ private fun CommentItem(
             onDismissRequest = { showFlairDialog = false },
             title = { Text(text = "User flair", color = TitleColor) },
             text = {
-                Text(
-                    text = flairText,
-                    color = TitleColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                // Extract emoji URL and display text from richtext if available
+                val (emojiUrl, displayText) = remember(comment.authorFlairRichtext, flairText, flairEmojiLookup) {
+                    val richtext = comment.authorFlairRichtext
+                    if (!richtext.isNullOrEmpty()) {
+                        // Get emoji URL directly from richtext
+                        val emoji = richtext.firstOrNull { it.type == "emoji" }
+                        val url = emoji?.url
+
+                        // Get display text from text parts in richtext
+                        val text = richtext
+                            .filter { it.type == "text" }
+                            .mapNotNull { it.text }
+                            .joinToString("")
+                            .trim()
+
+                        Pair(url, text.ifBlank { flairText })
+                    } else {
+                        // Fallback to old method using lookup
+                        val cleaned = flairText.replace(Regex(":[^:\\s]+:"), "").trim()
+                        val alias = Regex(":[^\\s]+:").find(flairText)?.value?.lowercase()
+                        val key = flairText.lowercase()
+                        val altKey = cleaned.lowercase()
+                        val url = alias?.let { flairEmojiLookup[it] }
+                            ?: flairEmojiLookup[altKey]
+                            ?: flairEmojiLookup[key]
+                        Pair(url, cleaned.ifBlank { flairText })
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (!emojiUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = emojiUrl,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = displayText,
+                        color = TitleColor,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = { showFlairDialog = false }) {

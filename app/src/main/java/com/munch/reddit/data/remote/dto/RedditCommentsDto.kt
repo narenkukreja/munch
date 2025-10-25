@@ -30,6 +30,7 @@ data class RedditCommentDataDto(
     @SerializedName("body") val body: String? = null,
     @SerializedName("body_html") val bodyHtml: String? = null,
     @SerializedName("author_flair_text") val authorFlairText: String? = null,
+    @SerializedName("author_flair_richtext") val authorFlairRichtext: List<FlairRichTextDto>? = null,
     @SerializedName("score") val score: Int = 0,
     @SerializedName("created_utc") val createdUtc: Long = 0L,
     @SerializedName("replies") val replies: JsonElement? = null,
@@ -168,6 +169,14 @@ fun RedditCommentDataDto.toDomain(
             ?.replace("\u200D", "") // Zero-width joiner
             ?.replace("\uFEFF", "") // Zero-width no-break space
             ?.takeIf { it.isNotBlank() && it.length > 1 },
+        authorFlairRichtext = authorFlairRichtext?.map { dto ->
+            com.munch.reddit.domain.model.FlairRichText(
+                type = dto.type ?: "text",
+                text = dto.text,
+                alias = dto.alias,
+                url = dto.url
+            )
+        },
         pendingRemoteReplyCount = pendingCountCollector[resolvedId] ?: 0,
         children = childComments
     )

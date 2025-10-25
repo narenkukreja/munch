@@ -60,6 +60,12 @@ interface RedditRepository {
         timeRange: String? = null,
         after: String? = null
     ): PostPage
+
+    /**
+     * Returns a lookup map for flair display text (lowercased) -> emoji URL for a subreddit.
+     * For example: "hawks" -> "https://emoji.redditmedia.com/.../atl-1".
+     */
+    suspend fun fetchSubredditUserFlairEmojis(subreddit: String): Map<String, String>
 }
 
 class RedditRepositoryImpl(
@@ -74,6 +80,13 @@ class RedditRepositoryImpl(
     private val subredditIconCache = mutableMapOf<String, CachedSubredditIcon>()
     private var isIconCacheLoaded = false
     private val iconCacheTtlMillis = TimeUnit.HOURS.toMillis(3)
+
+    private data class CachedFlairEmojiMap(
+        val map: Map<String, String>,
+        val fetchedAtEpochMillis: Long
+    )
+    private val flairEmojiCache = mutableMapOf<String, CachedFlairEmojiMap>()
+    private val flairCacheTtlMillis = TimeUnit.HOURS.toMillis(3)
 
     override suspend fun fetchSubreddit(
         subreddit: String,
@@ -302,6 +315,51 @@ class RedditRepositoryImpl(
             posts = posts,
             nextPageToken = response.data.after
         )
+    }
+
+    override suspend fun fetchSubredditUserFlairEmojis(subreddit: String): Map<String, String> {
+        val normalized = subreddit
+            .removePrefix("r/")
+            .removePrefix("R/")
+            .trim()
+            .lowercase()
+        if (normalized.isBlank() || normalized == "all") return emptyMap()
+
+        val now = System.currentTimeMillis()
+        val cached = flairEmojiCache[normalized]
+        if (cached != null && now - cached.fetchedAtEpochMillis <= flairCacheTtlMillis) {
+            return cached.map
+        }
+
+        return runCatching {
+            val items = api.getUserFlairV2(normalized, rawJson = 1)
+            val map = mutableMapOf<String, String>()
+            for (item in items) {
+                val parts = item.richtext.orEmpty()
+                val emojiUrl = parts.firstOrNull { it.type == "emoji" }?.url
+                val alias = parts.firstOrNull { it.type == "emoji" }?.alias
+                if (!emojiUrl.isNullOrBlank()) {
+                    if (!alias.isNullOrBlank()) {
+                        map[alias.lowercase()] = emojiUrl
+                    }
+                    // Preferred: derive display text from text parts in richtext
+                    val display = parts
+                        .filter { it.type == "text" && !it.text.isNullOrBlank() }
+                        .joinToString(separator = "") { it.text.orEmpty() }
+                        .trim()
+                        .ifBlank {
+                            // Fallback: strip :alias: from item.text
+                            item.text.orEmpty().replace(Regex(":[^:\\s]+:"), "").trim()
+                        }
+                    if (display.isNotBlank()) {
+                        map[display.lowercase()] = emojiUrl
+                    }
+                }
+            }
+            val frozen = map.toMap()
+            flairEmojiCache[normalized] = CachedFlairEmojiMap(frozen, now)
+            frozen
+        }.getOrElse { emptyMap() }
     }
 
     private suspend fun ensureIconCacheLoaded() {

@@ -260,6 +260,14 @@ class PostDetailViewModel(
                         autoFetchRemaining = autoFetchBudget
                     )
 
+                    // Fetch flair emoji lookup for the post's subreddit (e.g., r/nba team flairs)
+                    viewModelScope.launch {
+                        val lookup = runCatching {
+                            repository.fetchSubredditUserFlairEmojis(detail.post.subreddit)
+                        }.getOrElse { emptyMap() }
+                        _uiState.value = _uiState.value.copy(flairEmojiLookup = lookup)
+                    }
+
                     // If we need to change sort, reload with the correct sort
                     if (effectiveSort != sort) {
                         load(sort = effectiveSort, reloadPost = false)
@@ -561,7 +569,8 @@ class PostDetailViewModel(
         val isRefreshingComments: Boolean = false,
         val pendingRemoteReplyCount: Int = 0,
         val autoFetchRemaining: Int = 0,
-        val subredditIcons: Map<String, String?> = emptyMap()
+        val subredditIcons: Map<String, String?> = emptyMap(),
+        val flairEmojiLookup: Map<String, String> = emptyMap()
     )
 
     companion object {

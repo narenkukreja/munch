@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.munch.reddit.data.remote.dto.RedditListingResponse
 import com.munch.reddit.data.remote.dto.RedditMoreChildrenResponse
 import com.munch.reddit.data.remote.dto.SubredditAboutResponse
+import com.munch.reddit.data.remote.dto.UserFlairV2ItemDto
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -55,4 +56,10 @@ interface RedditApiService {
         @Query("after") after: String? = null,
         @Query("raw_json") rawJson: Int = 1
     ): RedditListingResponse
+
+    @GET("r/{subreddit}/api/user_flair_v2.json")
+    suspend fun getUserFlairV2(
+        @Path("subreddit") subreddit: String,
+        @Query("raw_json") rawJson: Int = 1
+    ): List<UserFlairV2ItemDto>
 }
