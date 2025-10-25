@@ -41,6 +41,7 @@ private const val FEED_ROUTE = "feed"
 private const val DETAIL_ROUTE = "detail/{permalink}"
 private const val IMAGE_PREVIEW_ROUTE = "image_preview/{imageUrl}"
 private const val YOUTUBE_PLAYER_ROUTE = "youtube/{videoId}"
+private const val VIDEO_FEED_ROUTE = "video_feed"
 private const val SEARCH_ROUTE = "search"
 private const val SETTINGS_ROUTE = "settings"
 private const val SETTINGS_THEME_ROUTE = "settings_theme"
@@ -111,6 +112,9 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     },
                     onSettingsClick = {
                         navController.navigate(SETTINGS_ROUTE)
+                    },
+                    onVideoFeedClick = {
+                        navController.navigate(VIDEO_FEED_ROUTE)
                     }
                 )
             }
@@ -192,6 +196,39 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                 } else {
                     navController.popBackStack()
                 }
+            }
+            composable(
+                route = VIDEO_FEED_ROUTE,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(200))
+                }
+            ) {
+                val feedBackStackEntry = navController.getBackStackEntry(FEED_ROUTE)
+                com.munch.reddit.feature.videofeed.VideoFeedRoute(
+                    navController = navController,
+                    feedBackStackEntry = feedBackStackEntry
+                )
             }
             composable(
                 route = SEARCH_ROUTE,

@@ -88,6 +88,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -146,7 +147,8 @@ fun RedditFeedRoute(
     onImageSelected: (String) -> Unit,
     onYouTubeSelected: (String) -> Unit,
     onSearchClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onVideoFeedClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -266,6 +268,7 @@ fun RedditFeedRoute(
         onSwipeBack = { handleBackAttempt() },
         onImageClick = onImageSelected,
         onYouTubeSelected = onYouTubeSelected,
+        onVideoFeedClick = onVideoFeedClick,
         onLoadMore = { viewModel.loadMore() },
         isAppending = uiState.isAppending,
         canLoadMore = uiState.hasMore,
@@ -292,6 +295,7 @@ fun RedditFeedScreen(
     onSwipeBack: () -> Unit = {},
     onImageClick: (String) -> Unit = {},
     onYouTubeSelected: (String) -> Unit = {},
+    onVideoFeedClick: () -> Unit = {},
     onLoadMore: () -> Unit = {},
     isAppending: Boolean = false,
     canLoadMore: Boolean = true,
@@ -323,7 +327,8 @@ fun RedditFeedScreen(
                 subredditOptions = subredditOptions,
                 selectedIndex = selectedIndex,
                 onSelectSubreddit = onSelectSubreddit,
-                scrollBehavior = scrollBehavior
+                scrollBehavior = scrollBehavior,
+                onVideoFeedClick = onVideoFeedClick
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -477,7 +482,8 @@ private fun RedditTopBar(
     subredditOptions: List<String>,
     selectedIndex: Int,
     onSelectSubreddit: (String) -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior
+    scrollBehavior: TopAppBarScrollBehavior,
+    onVideoFeedClick: () -> Unit = {}
 ) {
     var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
@@ -508,6 +514,13 @@ private fun RedditTopBar(
         ),
         scrollBehavior = scrollBehavior,
         actions = {
+            IconButton(onClick = onVideoFeedClick) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_tiktok),
+                    contentDescription = "TikTok mode",
+                    tint = TitleColor
+                )
+            }
             IconButton(onClick = { isFilterMenuExpanded = true }) {
                 Icon(
                     imageVector = Icons.Filled.Tune,

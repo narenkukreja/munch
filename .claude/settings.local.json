@@ -13,7 +13,8 @@
       "WebFetch(domain:jitpack.io)",
       "WebFetch(domain:github.com)",
       "Bash(./gradlew:*)",
-      "WebFetch(domain:pierfrancescosoffritti.github.io)"
+      "WebFetch(domain:pierfrancescosoffritti.github.io)",
+      "WebFetch(domain:medium.com)"
     ],
     "deny": [],
     "ask": []
