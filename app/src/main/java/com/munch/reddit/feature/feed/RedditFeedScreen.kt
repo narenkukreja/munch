@@ -375,25 +375,32 @@ fun RedditFeedScreen(
                     onRetry = onRetry,
                     modifier = Modifier.fillMaxSize()
                 )
-                else -> PostList(
-                    posts = uiState.posts,
-                    isRefreshing = uiState.isLoading,
-                    onRefresh = onRetry,
-                    selectedSubreddit = uiState.selectedSubreddit,
-                    subredditOptions = subredditOptions,
-                    onSubredditTapped = { showSubredditSheet = true },
-                    onPostSelected = onPostSelected,
-                    modifier = Modifier.fillMaxSize(),
-                    listState = feedListState,
-                    onSwipeBack = onSwipeBack,
-                    onImageClick = onImageClick,
-                    onYouTubeSelected = onYouTubeSelected,
-                    onOpenSideSheet = { showSubredditSheet = true },
-                    onLoadMore = onLoadMore,
-                    isAppending = isAppending,
-                    canLoadMore = canLoadMore,
-                    contentPadding = PaddingValues(vertical = spacing.lg)
-                )
+                else -> {
+                    PostList(
+                        posts = uiState.posts,
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = onRetry,
+                        selectedSubreddit = uiState.selectedSubreddit,
+                        subredditOptions = subredditOptions,
+                        onSubredditTapped = { showSubredditSheet = true },
+                        onPostSelected = onPostSelected,
+                        modifier = Modifier.fillMaxSize(),
+                        listState = feedListState,
+                        onSwipeBack = onSwipeBack,
+                        onImageClick = onImageClick,
+                        onYouTubeSelected = onYouTubeSelected,
+                        onOpenSideSheet = { showSubredditSheet = true },
+                        onLoadMore = onLoadMore,
+                        isAppending = isAppending,
+                        canLoadMore = canLoadMore,
+                        contentPadding = PaddingValues(vertical = spacing.lg)
+                    )
+
+                    // Show loading overlay when switching subreddits
+                    if (uiState.isLoading && previousSubreddit != null && previousSubreddit != uiState.selectedSubreddit) {
+                        LoadingState(modifier = Modifier.fillMaxSize())
+                    }
+                }
             }
 
             SubredditSideSheet(
@@ -610,7 +617,8 @@ private fun FilterDropdownMenu(
 private fun LoadingState(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .background(SpacerBackgroundColor),
         contentAlignment = Alignment.Center
     ) {
         LoadingIndicator()
