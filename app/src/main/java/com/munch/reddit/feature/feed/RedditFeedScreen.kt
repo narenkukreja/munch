@@ -389,6 +389,7 @@ fun RedditFeedScreen(
                         onSwipeBack = onSwipeBack,
                         onImageClick = onImageClick,
                         onYouTubeSelected = onYouTubeSelected,
+                        onSubredditSelected = onSelectSubreddit,
                         onOpenSideSheet = { showSubredditSheet = true },
                         onLoadMore = onLoadMore,
                         isAppending = isAppending,
@@ -664,6 +665,7 @@ private fun PostList(
     onSwipeBack: () -> Unit,
     onImageClick: (String) -> Unit,
     onYouTubeSelected: (String) -> Unit,
+    onSubredditSelected: (String) -> Unit = {},
     onOpenSideSheet: () -> Unit,
     onLoadMore: () -> Unit,
     isAppending: Boolean,
@@ -809,6 +811,7 @@ private fun PostList(
                     onPostSelected = onPostSelected,
                     onImageClick = onImageClick,
                     onYouTubeSelected = onYouTubeSelected,
+                    onSubredditSelected = onSubredditSelected,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -841,6 +844,7 @@ internal fun RedditPostItem(
     onPostSelected: (RedditPost) -> Unit,
     onImageClick: (String) -> Unit,
     onYouTubeSelected: (String) -> Unit,
+    onSubredditSelected: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -976,7 +980,18 @@ internal fun RedditPostItem(
             ) {
                 val labelModifier = Modifier.weight(1f)
                 Row(
-                    modifier = labelModifier,
+                    modifier = labelModifier
+                        .then(
+                            if (isGlobalFeed) {
+                                Modifier.clickable {
+                                    // Extract subreddit name without r/ prefix
+                                    val subredditName = post.subreddit.removePrefix("r/").removePrefix("R/")
+                                    onSubredditSelected(subredditName)
+                                }
+                            } else {
+                                Modifier
+                            }
+                        ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
