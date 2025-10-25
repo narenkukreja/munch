@@ -1062,7 +1062,8 @@ private fun CommentItem(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
-                    if (flairText != null) {
+                    // Hide flair if user is OP
+                    if (flairText != null && !node.isOp) {
                         Surface(
                             color = FlairBackgroundColor,
                             contentColor = Color.White,
