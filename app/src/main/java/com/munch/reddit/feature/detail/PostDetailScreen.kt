@@ -1,5 +1,7 @@
 package com.munch.reddit.feature.detail
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -26,6 +28,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,7 +57,10 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -1018,8 +1024,10 @@ private fun CommentItem(
     flairEmojiLookup: Map<String, String>
 ) {
     val comment = node.comment
+    val context = LocalContext.current
     val flairText = comment.authorFlairText?.takeIf { it.isNotBlank() }
     var showFlairDialog by remember { mutableStateOf(false) }
+    var showCommentOptionsDialog by remember { mutableStateOf(false) }
     val headerInteraction = remember { MutableInteractionSource() }
     val spacing = MaterialSpacing
     val parentVerticalPadding = spacing.sm * 0.5f
@@ -1031,10 +1039,12 @@ private fun CommentItem(
             .fillMaxWidth()
             .padding(horizontal = spacing.lg, vertical = verticalPadding)
             .height(IntrinsicSize.Min)
-            .clickable(
-                interactionSource = headerInteraction,
-                indication = null
-            ) { onToggleComment(comment.id) },
+            .pointerInput(comment.id) {
+                detectTapGestures(
+                    onTap = { onToggleComment(comment.id) },
+                    onLongPress = { showCommentOptionsDialog = true }
+                )
+            },
         verticalAlignment = Alignment.Top
     ) {
         if (node.depth > 0) {
@@ -1266,6 +1276,121 @@ private fun CommentItem(
             confirmButton = {
                 TextButton(onClick = { showFlairDialog = false }) {
                     Text(text = "Close", color = SubredditColor)
+                }
+            }
+        )
+    }
+
+    if (showCommentOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showCommentOptionsDialog = false },
+            title = { Text(text = "Comment Options", color = TitleColor) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs)
+                ) {
+                    // Option 1: View Profile
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showCommentOptionsDialog = false
+                                val profileUrl = "https://www.reddit.com/user/${comment.author}"
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(profileUrl))
+                                context.startActivity(intent)
+                            },
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                        ) {
+                            Icon(
+                                Icons.Filled.Person,
+                                contentDescription = null,
+                                tint = SubredditColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "View u/${comment.author}",
+                                color = TitleColor,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+
+                    // Option 2: Copy Text
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showCommentOptionsDialog = false
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Comment", comment.body)
+                                clipboard.setPrimaryClip(clip)
+                            },
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                        ) {
+                            Icon(
+                                Icons.Filled.ContentCopy,
+                                contentDescription = null,
+                                tint = SubredditColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Copy text",
+                                color = TitleColor,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+
+                    // Option 3: Share Comment
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showCommentOptionsDialog = false
+                                val shareText = "${comment.body}\n\n- u/${comment.author}"
+                                val shareIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                    type = "text/plain"
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share comment"))
+                            },
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                        ) {
+                            Icon(
+                                Icons.Filled.Share,
+                                contentDescription = null,
+                                tint = SubredditColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Share comment",
+                                color = TitleColor,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCommentOptionsDialog = false }) {
+                    Text(text = "Cancel", color = SubredditColor)
                 }
             }
         )

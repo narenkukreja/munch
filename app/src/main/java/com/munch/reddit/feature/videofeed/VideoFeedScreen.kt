@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,7 +38,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -209,6 +212,7 @@ fun VideoFeedContent(
             modifier = modifier,
             key = { videoPosts[it].id }
         ) { page ->
+            val post = videoPosts[page]
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -255,6 +259,36 @@ fun VideoFeedContent(
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(72.dp)
+                            )
+                        }
+                        // Bottom overlay with post title
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxSize()
+                        ) {
+                            // Gradient background at the bottom for readability
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.Black.copy(alpha = 0.55f)
+                                            )
+                                        )
+                                    )
+                            )
+                            Text(
+                                text = post.title,
+                                color = Color.White,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(16.dp)
                             )
                         }
                     }
