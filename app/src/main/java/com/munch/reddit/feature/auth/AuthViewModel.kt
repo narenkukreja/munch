@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 private const val AUTHORIZATION_URL = "https://www.reddit.com/api/v1/authorize.compact"
 private const val REDIRECT_URI = "com.munch.reddit://oauth"
-private const val REQUESTED_SCOPES = "read"
+private const val REQUESTED_SCOPES = "read identity"
 
 data class AuthUiState(
     val clientIdInput: String = "",

@@ -34,6 +34,8 @@
                 <data
                     android:host="oauth"
                     android:scheme="com.munch.reddit" />
+                <!-- Broad match in case provider appends a path; keeps scheme unique to our app -->
+                <data android:scheme="com.munch.reddit" />
             </intent-filter>
         </activity>
         

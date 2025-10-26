@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.feature.detail.PostDetailRoute
+import com.munch.reddit.feature.auth.AuthRoute
 import com.munch.reddit.feature.feed.RedditFeedRoute
 import com.munch.reddit.feature.feed.RedditFeedViewModel
 import com.munch.reddit.feature.onboarding.SelectThemeScreen
@@ -35,6 +36,7 @@ import com.munch.reddit.feature.shared.ImagePreviewRoute
 import com.munch.reddit.feature.feed.FeedTheme
 import com.munch.reddit.theme.FeedThemePreset
 
+private const val AUTH_ROUTE = "auth"
 private const val WELCOME_ROUTE = "welcome"
 private const val SELECT_THEME_ROUTE = "select_theme"
 private const val FEED_ROUTE = "feed"
@@ -58,12 +60,8 @@ fun AppNavHost(modifier: Modifier = Modifier) {
     var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
     val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
 
-    // Determine start destination based on onboarding completion
-    val startDestination = if (appPreferences.hasCompletedOnboarding) {
-        FEED_ROUTE
-    } else {
-        WELCOME_ROUTE
-    }
+    // Determine start destination for fresh installs vs. returning users
+    val startDestination = if (appPreferences.hasCompletedOnboarding) FEED_ROUTE else AUTH_ROUTE
 
     FeedTheme(feedThemePreset) {
         NavHost(
@@ -71,6 +69,16 @@ fun AppNavHost(modifier: Modifier = Modifier) {
             startDestination = startDestination,
             modifier = modifier.background(Color.Black)
         ) {
+            composable(AUTH_ROUTE) {
+                AuthRoute(
+                    onAuthorized = {
+                        navController.navigate(WELCOME_ROUTE) {
+                            popUpTo(AUTH_ROUTE) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             composable(WELCOME_ROUTE) {
                 WelcomeScreen(
                     onStartClick = {

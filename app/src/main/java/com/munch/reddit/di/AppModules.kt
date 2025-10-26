@@ -1,6 +1,8 @@
 package com.munch.reddit.di
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import com.munch.reddit.data.auth.OAuthApiService
 import com.munch.reddit.data.auth.OAuthCallbackHandler
 import com.munch.reddit.data.auth.OAuthRepository
@@ -22,12 +24,26 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 private const val API_BASE_URL = "https://www.reddit.com/"
 private const val AUTH_BASE_URL = "https://www.reddit.com/"
-private const val USER_AGENT = "MunchForReddit/1.0 (by u/anon)"
 
-private fun userAgentInterceptor(): Interceptor = Interceptor { chain ->
+private fun resolvedUserAgent(context: Context): String {
+    val appId = context.packageName
+    val version = try {
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.packageManager.getPackageInfo(appId, PackageManager.PackageInfoFlags.of(0)).versionName
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(appId, 0).versionName
+        }
+    } catch (t: Throwable) {
+        "0"
+    }
+    return "android:$appId:$version (by /u/anon)"
+}
+
+private fun userAgentInterceptor(userAgent: String): Interceptor = Interceptor { chain ->
     val request = chain.request()
         .newBuilder()
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", userAgent)
         .build()
     chain.proceed(request)
 }
@@ -37,11 +53,12 @@ val authModule = module {
     single { OAuthCallbackHandler() }
 
     single {
+        val ua = resolvedUserAgent(androidContext())
         Retrofit.Builder()
             .baseUrl(AUTH_BASE_URL)
             .client(
                 OkHttpClient.Builder()
-                    .addInterceptor(userAgentInterceptor())
+                    .addInterceptor(userAgentInterceptor(ua))
                     .build()
             )
             .addConverterFactory(GsonConverterFactory.create())
@@ -55,8 +72,9 @@ val authModule = module {
 
 val networkModule = module {
     single {
+        val ua = resolvedUserAgent(androidContext())
         OkHttpClient.Builder()
-            .addInterceptor(userAgentInterceptor())
+            .addInterceptor(userAgentInterceptor(ua))
             .addInterceptor(OAuthAccessTokenInterceptor(tokenManager = get()))
             .addInterceptor(OAuthHostInterceptor())
             .authenticator(OAuthTokenAuthenticator(tokenManager = get()))

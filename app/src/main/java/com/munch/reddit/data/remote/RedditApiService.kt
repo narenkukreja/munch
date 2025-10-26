@@ -10,6 +10,9 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface RedditApiService {
+    @GET("api/v1/me")
+    suspend fun getIdentity(): com.google.gson.JsonElement
+
     @GET("{path}.json")
     suspend fun getListing(
         @Path(value = "path", encoded = true) path: String,

@@ -33,7 +33,8 @@ import org.koin.compose.koinInject
 fun AuthRoute(
     modifier: Modifier = Modifier,
     viewModel: AuthViewModel = koinViewModel(),
-    callbackHandler: OAuthCallbackHandler = koinInject()
+    callbackHandler: OAuthCallbackHandler = koinInject(),
+    onAuthorized: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -42,6 +43,12 @@ fun AuthRoute(
     LaunchedEffect(callbackHandler) {
         callbackHandler.callbacks.collect { uri ->
             viewModel.handleAuthorizationRedirect(uri)
+        }
+    }
+
+    LaunchedEffect(uiState.isAuthorized) {
+        if (uiState.isAuthorized) {
+            onAuthorized()
         }
     }
 
@@ -87,6 +94,12 @@ fun AuthRoute(
             onClick = {
                 val request = viewModel.prepareAuthorization() ?: return@Button
                 val customTabsIntent = CustomTabsIntent.Builder().build()
+                // Prefer Chrome if available to ensure browser handles the OAuth flow
+                runCatching {
+                    val chrome = "com.android.chrome"
+                    context.packageManager.getApplicationInfo(chrome, 0)
+                    customTabsIntent.intent.setPackage(chrome)
+                }
                 customTabsIntent.launchUrl(context, request.uri)
             },
             modifier = Modifier
