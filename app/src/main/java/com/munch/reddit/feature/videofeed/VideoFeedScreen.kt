@@ -283,7 +283,7 @@ fun VideoFeedContent(
                             )
                             Text(
                                 text = post.title,
-                                color = Color.White,
+                                color = com.munch.reddit.feature.feed.TitleColor,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier

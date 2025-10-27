@@ -64,7 +64,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
+import com.munch.reddit.feature.shared.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilterChip
@@ -101,8 +101,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.consumePositionChange
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -1025,6 +1027,7 @@ private fun CommentItem(
 ) {
     val comment = node.comment
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val flairText = comment.authorFlairText?.takeIf { it.isNotBlank() }
     var showFlairDialog by remember { mutableStateOf(false) }
     var showCommentOptionsDialog by remember { mutableStateOf(false) }
@@ -1042,7 +1045,10 @@ private fun CommentItem(
             .pointerInput(comment.id) {
                 detectTapGestures(
                     onTap = { onToggleComment(comment.id) },
-                    onLongPress = { showCommentOptionsDialog = true }
+                    onLongPress = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showCommentOptionsDialog = true
+                    }
                 )
             },
         verticalAlignment = Alignment.Top
