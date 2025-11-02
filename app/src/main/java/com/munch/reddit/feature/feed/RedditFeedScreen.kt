@@ -331,8 +331,27 @@ fun RedditFeedScreen(
     val spacing = MaterialSpacing
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val coroutineScope = rememberCoroutineScope()
-    // Preserve side sheet scroll between openings within this screen
-    val sideSheetScrollState = remember { ScrollState(0) }
+    val sideSheetScrollState = remember(viewModel) {
+        ScrollState(viewModel?.getSideSheetScroll() ?: 0)
+    }
+
+    LaunchedEffect(showSubredditSheet) {
+        if (showSubredditSheet) {
+            viewModel?.getSideSheetScroll()?.let { saved ->
+                if (sideSheetScrollState.value != saved) {
+                    sideSheetScrollState.scrollTo(saved)
+                }
+            }
+        } else {
+            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+        }
+    }
+
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+        }
+    }
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

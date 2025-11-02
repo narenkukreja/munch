@@ -25,6 +25,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -81,6 +82,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -191,7 +193,8 @@ fun PostDetailRoute(
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { navController.navigate("search") },
         onSettingsClick = { navController.navigate("settings") },
-        subredditOptions = SubredditCatalog.defaultSubreddits
+        subredditOptions = SubredditCatalog.defaultSubreddits,
+        viewModel = viewModel
     )
 }
 
@@ -228,7 +231,8 @@ fun PostDetailActivityContent(
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { /* no-op in standalone activity */ },
         onSettingsClick = { /* no-op */ },
-        subredditOptions = SubredditCatalog.defaultSubreddits
+        subredditOptions = SubredditCatalog.defaultSubreddits,
+        viewModel = viewModel
     )
 }
 
@@ -251,7 +255,8 @@ private fun PostDetailScreen(
     onOpenLink: (String) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    subredditOptions: List<String>
+    subredditOptions: List<String>,
+    viewModel: PostDetailViewModel? = null
 ) {
     var showSubredditSheet by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
@@ -269,6 +274,27 @@ private fun PostDetailScreen(
         ?.removePrefix("R/")
         ?.lowercase()
         ?: "all"
+    val sideSheetScrollState = remember(viewModel) {
+        ScrollState(viewModel?.getSideSheetScroll() ?: 0)
+    }
+
+    LaunchedEffect(showSubredditSheet) {
+        if (showSubredditSheet) {
+            viewModel?.getSideSheetScroll()?.let { saved ->
+                if (sideSheetScrollState.value != saved) {
+                    sideSheetScrollState.scrollTo(saved)
+                }
+            }
+        } else {
+            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+        }
+    }
+
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+        }
+    }
 
     Scaffold(
         containerColor = SpacerBackgroundColor,
@@ -518,7 +544,8 @@ private fun PostDetailScreen(
         modifier = Modifier.padding(top = 16.dp, bottom = 16.dp),
         subredditIcons = uiState.subredditIcons,
         exploreSubreddits = SubredditCatalog.exploreSubreddits,
-        onSettingsClick = onSettingsClick
+        onSettingsClick = onSettingsClick,
+        scrollState = sideSheetScrollState
     )
 }
 

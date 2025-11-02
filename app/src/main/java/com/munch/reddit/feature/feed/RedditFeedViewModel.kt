@@ -6,6 +6,7 @@ import com.munch.reddit.data.repository.RedditRepository
 import com.munch.reddit.data.repository.SubredditRepository
 import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
+import com.munch.reddit.feature.shared.SubredditSideSheetScrollState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -101,6 +102,12 @@ class RedditFeedViewModel(
             subredditRepository.prefetchSubredditIcons(allSubreddits.distinct())
         }
     }
+
+    fun updateSideSheetScroll(position: Int) {
+        SubredditSideSheetScrollState.update(position)
+    }
+
+    fun getSideSheetScroll(): Int = SubredditSideSheetScrollState.current()
 
     private fun enqueueIconFetch(subreddit: String) {
         viewModelScope.launch {

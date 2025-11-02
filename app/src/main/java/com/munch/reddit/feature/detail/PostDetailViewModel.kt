@@ -9,6 +9,7 @@ import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditComment
 import com.munch.reddit.domain.model.RedditCommentCursor
 import com.munch.reddit.domain.model.RedditPost
+import com.munch.reddit.feature.shared.SubredditSideSheetScrollState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,6 +75,12 @@ class PostDetailViewModel(
         }
         emitComments()
     }
+
+    fun updateSideSheetScroll(position: Int) {
+        SubredditSideSheetScrollState.update(position)
+    }
+
+    fun getSideSheetScroll(): Int = SubredditSideSheetScrollState.current()
 
     fun loadMoreComments() {
         requestMoreComments(userInitiated = false)

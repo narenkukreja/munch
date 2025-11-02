@@ -84,7 +84,7 @@ fun SubredditSideSheet(
     val dragThreshold = 100f
 
     // Save scroll position when sheet closes to restore it exactly when reopening
-    val savedScrollValue = remember { mutableIntStateOf(0) }
+    val savedScrollValue = remember(sheetScrollState) { mutableIntStateOf(sheetScrollState.value) }
 
     LaunchedEffect(visible) {
         if (visible) {
