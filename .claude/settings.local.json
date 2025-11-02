@@ -15,7 +15,8 @@
       "Bash(./gradlew:*)",
       "WebFetch(domain:pierfrancescosoffritti.github.io)",
       "WebFetch(domain:medium.com)",
-      "WebFetch(domain:www.reddit.com)"
+      "WebFetch(domain:www.reddit.com)",
+      "WebFetch(domain:joebirch.co)"
     ],
     "deny": [],
     "ask": []
