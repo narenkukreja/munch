@@ -123,6 +123,22 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                     },
                     onVideoFeedClick = {
                         navController.navigate(VIDEO_FEED_ROUTE)
+                    },
+                    onGalleryPreview = { urls, index ->
+                        android.util.Log.d("AppNavHost", "onGalleryPreview called - urls.size: ${urls.size}, index: $index")
+                        runCatching {
+                            // Convert to ArrayList for SavedStateHandle compatibility
+                            val arrayList = ArrayList(urls)
+                            navController.currentBackStackEntry?.savedStateHandle?.set("image_gallery", arrayList)
+                            navController.currentBackStackEntry?.savedStateHandle?.set("image_gallery_start_index", index)
+                            android.util.Log.d("AppNavHost", "Saved gallery data to savedStateHandle - arrayList.size: ${arrayList.size}")
+                        }.onFailure {
+                            android.util.Log.e("AppNavHost", "Failed to save gallery data", it)
+                        }
+                        val startUrl = urls.getOrNull(index) ?: urls.firstOrNull()
+                        if (!startUrl.isNullOrBlank()) {
+                            navController.navigate(imagePreviewRoute(startUrl))
+                        }
                     }
                 )
             }

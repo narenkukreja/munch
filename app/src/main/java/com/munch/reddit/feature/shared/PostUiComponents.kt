@@ -85,6 +85,7 @@ fun RedditPostMediaContent(
     modifier: Modifier = Modifier,
     onLinkClick: ((String) -> Unit)? = null,
     onImageClick: ((String) -> Unit)? = null,
+    onGalleryClick: ((List<String>, Int) -> Unit)? = null,
     onYoutubeClick: ((String, String) -> Unit)? = null
 ) {
     when (media) {
@@ -92,7 +93,7 @@ fun RedditPostMediaContent(
         is RedditPostMedia.Image -> RedditPostImage(media, modifier, onImageClick)
         is RedditPostMedia.Video -> RedditPostVideo(media, modifier)
         is RedditPostMedia.Link -> RedditPostLink(media, modifier, onLinkClick)
-        is RedditPostMedia.Gallery -> RedditPostGallery(media, modifier, onImageClick)
+        is RedditPostMedia.Gallery -> RedditPostGallery(media, modifier, onImageClick, onGalleryClick)
         is RedditPostMedia.YouTube -> RedditPostYouTube(media, modifier, onYoutubeClick)
         is RedditPostMedia.RedGifs -> RedditPostRedGifs(media, modifier)
     }
@@ -427,7 +428,8 @@ fun RedditPostLink(
 fun RedditPostGallery(
     media: RedditPostMedia.Gallery,
     modifier: Modifier = Modifier,
-    onImageClick: ((String) -> Unit)? = null
+    onImageClick: ((String) -> Unit)? = null,
+    onGalleryClick: ((List<String>, Int) -> Unit)? = null
 ) {
     if (media.images.isEmpty()) return
     val listState = rememberLazyListState()
@@ -453,11 +455,18 @@ fun RedditPostGallery(
             modifier = Modifier.fillMaxWidth(),
             flingBehavior = flingBehavior
         ) {
-            itemsIndexed(media.images, key = { index, image -> "${image.url}-$index" }) { _, image ->
+            itemsIndexed(media.images, key = { index, image -> "${image.url}-$index" }) { idx, image ->
+                val click: ((String) -> Unit)? = when {
+                    onGalleryClick != null -> { url: String ->
+                        val urls = media.images.map { it.url }
+                        onGalleryClick.invoke(urls, idx)
+                    }
+                    else -> onImageClick
+                }
                 RedditPostImage(
                     media = image,
                     modifier = Modifier.fillParentMaxWidth(),
-                    onClick = onImageClick
+                    onClick = click
                 )
             }
         }

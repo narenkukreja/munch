@@ -14,7 +14,9 @@ data class FeedColorPalette(
     val modLabel: Color,
     val opLabel: Color,
     val visualModLabel: Color,
-    val postBorder: Color? = null
+    val postBorder: Color? = null,
+    // Optional comment body text color; falls back to title when null
+    val comment: Color? = null
 )
 
 private val wormiPalette = FeedColorPalette(
@@ -39,12 +41,13 @@ private val narwhalPalette = FeedColorPalette(
     spacerBackground = Color(0xFF141414),
     title = Color(0xFFFFFFFF),
     subreddit = Color(0xFF3F5C7C),
-    metaInfo = Color(0xFF747474),
+    metaInfo = Color(0xFF5B696C),
     pinnedLabel = Color(0xFF2ECC71),
     modLabel = Color(0xFF2ECC71),
     opLabel = Color(0xFFFF5252),
     visualModLabel = Color(0xFF2ECC71),
-    postBorder = Color(0xFF747474)
+    postBorder = Color(0xFF747474),
+    comment = Color(0xFF5B696C)
 )
 
 private val redditPalette = FeedColorPalette(

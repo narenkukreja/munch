@@ -179,6 +179,14 @@ fun PostDetailRoute(
         onLoadMoreReplies = viewModel::loadMoreReplies,
         onOpenSubreddit = { subreddit -> navController.navigateToFeedSubreddit(subreddit) },
         onOpenImage = { imageUrl -> navController.navigate(imagePreviewRoute(imageUrl)) },
+        onOpenGallery = { urls, index ->
+            runCatching {
+                // Convert to ArrayList for SavedStateHandle compatibility
+                navController.currentBackStackEntry?.savedStateHandle?.set("image_gallery", ArrayList(urls))
+                navController.currentBackStackEntry?.savedStateHandle?.set("image_gallery_start_index", index)
+            }
+            navController.navigate(imagePreviewRoute(urls.getOrNull(index) ?: urls.firstOrNull().orEmpty()))
+        },
         onOpenYouTube = { videoId -> navController.navigate(com.munch.reddit.navigation.youtubePlayerRoute(videoId)) },
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { navController.navigate("search") },
@@ -212,6 +220,7 @@ fun PostDetailActivityContent(
         onLoadMoreReplies = viewModel::loadMoreReplies,
         onOpenSubreddit = { /* no-op */ },
         onOpenImage = { imageUrl -> openLinkInCustomTab(context, imageUrl) },
+        onOpenGallery = { _, _ -> },
         onOpenYouTube = { videoId ->
             // Fallback for standalone activity: open in browser/app
             openYouTubeVideo(context, videoId, "https://www.youtube.com/watch?v=$videoId")
@@ -237,6 +246,7 @@ private fun PostDetailScreen(
     onLoadMoreReplies: (String) -> Unit,
     onOpenSubreddit: (String) -> Unit,
     onOpenImage: (String) -> Unit,
+    onOpenGallery: (List<String>, Int) -> Unit,
     onOpenYouTube: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     onSearchClick: () -> Unit,
@@ -329,6 +339,7 @@ private fun PostDetailScreen(
                             onLoadMoreReplies = onLoadMoreReplies,
                             onOpenSubreddit = onOpenSubreddit,
                             onOpenImage = onOpenImage,
+                            onOpenGallery = onOpenGallery,
                             onOpenYouTube = onOpenYouTube,
                             onOpenLink = onOpenLink,
                             isAppendingComments = uiState.isAppending,
@@ -609,6 +620,7 @@ private fun PostDetailContent(
     onLoadMoreReplies: (String) -> Unit,
     onOpenSubreddit: (String) -> Unit,
     onOpenImage: (String) -> Unit,
+    onOpenGallery: (List<String>, Int) -> Unit,
     onOpenYouTube: (String) -> Unit,
     onOpenLink: (String) -> Unit,
     isAppendingComments: Boolean,
@@ -671,6 +683,7 @@ private fun PostDetailContent(
                             modifier = Modifier.fillMaxWidth(),
                             onLinkClick = onOpenLink,
                             onImageClick = onOpenImage,
+                            onGalleryClick = onOpenGallery,
                             onYoutubeClick = { videoId, url ->
                                 val id = videoId.ifBlank { Uri.parse(url).getQueryParameter("v") ?: "" }
                                 if (id.isNotBlank()) onOpenYouTube(id)
@@ -1680,6 +1693,7 @@ private fun PostDetailScreenPreview() {
             onLoadMoreReplies = {},
             onOpenSubreddit = {},
             onOpenImage = {},
+            onOpenGallery = { _, _ -> },
             onOpenYouTube = {},
             onOpenLink = {},
             onSearchClick = {},
@@ -1707,6 +1721,7 @@ private fun PostDetailScreenLoadingPreview() {
                 onLoadMoreReplies = {},
                 onOpenSubreddit = {},
                 onOpenImage = {},
+                onOpenGallery = { _, _ -> },
                 onOpenYouTube = {},
                 onOpenLink = {},
                 onSearchClick = {},
@@ -1733,6 +1748,7 @@ private fun PostDetailScreenErrorPreview() {
             onLoadMoreReplies = {},
             onOpenSubreddit = {},
             onOpenImage = {},
+            onOpenGallery = { _, _ -> },
             onOpenYouTube = {},
             onOpenLink = {},
             onSearchClick = {},

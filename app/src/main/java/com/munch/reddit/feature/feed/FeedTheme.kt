@@ -80,3 +80,8 @@ val PostBorderColor: Color
     @Composable
     @ReadOnlyComposable
     get() = LocalFeedColorPalette.current.postBorder ?: MaterialTheme.colorScheme.outlineVariant
+
+val CommentTextColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalFeedColorPalette.current.comment ?: LocalFeedColorPalette.current.title

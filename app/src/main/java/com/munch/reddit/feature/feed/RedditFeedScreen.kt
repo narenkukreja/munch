@@ -150,7 +150,8 @@ fun RedditFeedRoute(
     onYouTubeSelected: (String) -> Unit,
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onVideoFeedClick: () -> Unit = {}
+    onVideoFeedClick: () -> Unit = {},
+    onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -285,6 +286,7 @@ fun RedditFeedRoute(
         listState = listState,
         onSwipeBack = { handleBackAttempt() },
         onImageClick = onImageSelected,
+        onGalleryPreview = onGalleryPreview,
         onYouTubeSelected = onYouTubeSelected,
         onVideoFeedClick = onVideoFeedClick,
         onLoadMore = { viewModel.loadMore() },
@@ -312,6 +314,7 @@ fun RedditFeedScreen(
     listState: LazyListState? = null,
     onSwipeBack: () -> Unit = {},
     onImageClick: (String) -> Unit = {},
+    onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit = {},
     onVideoFeedClick: () -> Unit = {},
     onLoadMore: () -> Unit = {},
@@ -384,6 +387,7 @@ fun RedditFeedScreen(
                     listState = previousListState,
                     onSwipeBack = {},
                     onImageClick = {},
+                    onGalleryPreview = onGalleryPreview,
                     onYouTubeSelected = {},
                     onOpenSideSheet = {},
                     onLoadMore = {},
@@ -415,6 +419,7 @@ fun RedditFeedScreen(
                         listState = feedListState,
                         onSwipeBack = onSwipeBack,
                         onImageClick = onImageClick,
+                        onGalleryPreview = onGalleryPreview,
                         onYouTubeSelected = onYouTubeSelected,
                         onSubredditSelected = onSelectSubreddit,
                         onOpenSideSheet = { showSubredditSheet = true },
@@ -701,6 +706,7 @@ private fun PostList(
     listState: LazyListState,
     onSwipeBack: () -> Unit,
     onImageClick: (String) -> Unit,
+    onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
     onOpenSideSheet: () -> Unit,
@@ -847,6 +853,7 @@ private fun PostList(
                     onSubredditTapped = onSubredditTapped,
                     onPostSelected = onPostSelected,
                     onImageClick = onImageClick,
+                    onGalleryPreview = onGalleryPreview,
                     onYouTubeSelected = onYouTubeSelected,
                     onSubredditSelected = onSubredditSelected,
                     modifier = Modifier
@@ -882,6 +889,7 @@ internal fun RedditPostItem(
     onSubredditTapped: () -> Unit,
     onPostSelected: (RedditPost) -> Unit,
     onImageClick: (String) -> Unit,
+    onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -1006,6 +1014,7 @@ internal fun RedditPostItem(
                 modifier = Modifier.fillMaxWidth(),
                 onLinkClick = { url -> openLinkInCustomTab(context, url) },
                 onImageClick = { url -> onImageClick(url) },
+                onGalleryClick = onGalleryPreview,
                 onYoutubeClick = { videoId, url ->
                     val youtube = post.media as? RedditPostMedia.YouTube
                     val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
