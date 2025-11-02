@@ -324,7 +324,14 @@ fun RedditPostLink(
     }
     val baseModifier = modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(12.dp))
+        .clip(
+            RoundedCornerShape(
+                topStart = 0.dp,
+                topEnd = 0.dp,
+                bottomEnd = 12.dp,
+                bottomStart = 12.dp
+            )
+        )
     val handler = onLinkClick
     val clickableModifier = if (handler != null) {
         baseModifier.clickable(

@@ -18,8 +18,26 @@ class AppPreferences(context: Context) {
         get() = prefs.getString(KEY_SELECTED_THEME, FeedThemePreset.Wormi.id) ?: FeedThemePreset.Wormi.id
         set(value) = prefs.edit().putString(KEY_SELECTED_THEME, value).apply()
 
+    // Read posts tracking
+    fun getReadPostIds(): Set<String> =
+        prefs.getStringSet(KEY_READ_POST_IDS, emptySet()) ?: emptySet()
+
+    fun setReadPostIds(ids: Set<String>) {
+        // SharedPreferences stores a mutable set reference; write a copy to avoid accidental mutation
+        prefs.edit().putStringSet(KEY_READ_POST_IDS, ids.toSet()).apply()
+    }
+
+    fun markPostRead(id: String) {
+        val current = getReadPostIds().toMutableSet()
+        if (current.add(id)) {
+            setReadPostIds(current)
+        }
+    }
+
+
     companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_SELECTED_THEME = "selected_theme"
+        private const val KEY_READ_POST_IDS = "read_post_ids"
     }
 }

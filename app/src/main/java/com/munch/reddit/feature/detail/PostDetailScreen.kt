@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -1204,7 +1205,11 @@ private fun CommentItem(
                     modifier = Modifier.padding(top = spacing.xs, bottom = contentBottomPadding),
                     onLinkClick = onOpenLink,
                     onImageClick = onOpenImage,
-                    onTextClick = { onToggleComment(comment.id) }
+                    onTextClick = { onToggleComment(comment.id) },
+                    onLongPress = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showCommentOptionsDialog = true
+                    }
                 )
             } else {
                 val collapsedInteraction = remember { MutableInteractionSource() }
@@ -1219,10 +1224,15 @@ private fun CommentItem(
                     fontSize = 12.sp,
                     modifier = Modifier
                         .padding(top = spacing.xs, bottom = contentBottomPadding)
-                        .clickable(
+                        .combinedClickable(
                             interactionSource = collapsedInteraction,
-                            indication = null
-                        ) { onToggleComment(comment.id) }
+                            indication = null,
+                            onClick = { onToggleComment(comment.id) },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showCommentOptionsDialog = true
+                            }
+                        )
                 )
             }
         }

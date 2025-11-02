@@ -98,6 +98,8 @@ val repositoryModule = module {
     single { provideSubredditIconStorage(androidContext()) }
     single<RedditRepository> { RedditRepositoryImpl(get(), get()) }
     single { com.munch.reddit.data.repository.SubredditRepository(get()) }
+    // Application shared preferences holder
+    single { com.munch.reddit.data.AppPreferences(androidContext()) }
 }
 
 private fun provideOAuthStorage(context: Context): OAuthStorage = OAuthStorage(context)

@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 class RedditFeedViewModel(
     private val repository: RedditRepository,
-    private val subredditRepository: SubredditRepository
+    private val subredditRepository: SubredditRepository,
+    private val appPreferences: com.munch.reddit.data.AppPreferences
 ) : ViewModel() {
 
     enum class FeedSortOption(val displayLabel: String, val apiValue: String) {
@@ -110,6 +111,12 @@ class RedditFeedViewModel(
     init {
         refresh()
         prefetchSubredditIcons()
+        // Load read posts from preferences
+        _uiState.update { state ->
+            state.copy(
+                readPostIds = appPreferences.getReadPostIds()
+            )
+        }
         // Collect subreddit icons from shared repository
         viewModelScope.launch {
             subredditRepository.subredditIcons.collect { icons ->
@@ -121,6 +128,8 @@ class RedditFeedViewModel(
     fun refresh(limit: Int = DEFAULT_LIMIT, clearExisting: Boolean = false) {
         nextPageToken = null
         isLoadingNextPage = false
+        // On refresh, always show read posts again
+        _uiState.update { it.copy(hideReadPosts = false) }
         subredditSortState[currentSubreddit.lowercase()] =
             SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         viewModelScope.launch {
@@ -421,7 +430,9 @@ class RedditFeedViewModel(
         val hasMore: Boolean = true,
         val subredditIcons: Map<String, String?> = emptyMap(),
         val scrollPosition: ScrollPosition? = null,
-        val isNavigatingBack: Boolean = false
+        val isNavigatingBack: Boolean = false,
+        val readPostIds: Set<String> = emptySet(),
+        val hideReadPosts: Boolean = false
     )
 
     fun saveScrollPosition(subreddit: String, firstVisibleItemIndex: Int, firstVisibleItemScrollOffset: Int) {
@@ -459,5 +470,17 @@ class RedditFeedViewModel(
 
     companion object {
         private const val DEFAULT_LIMIT = 50
+    }
+
+    fun markPostRead(id: String) {
+        appPreferences.markPostRead(id)
+        _uiState.update { state ->
+            state.copy(readPostIds = state.readPostIds + id)
+        }
+    }
+
+    fun toggleHideReadPosts() {
+        val newValue = !_uiState.value.hideReadPosts
+        _uiState.update { it.copy(hideReadPosts = newValue) }
     }
 }

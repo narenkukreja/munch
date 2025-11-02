@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -94,6 +95,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -161,6 +163,17 @@ fun RedditFeedRoute(
             firstVisibleItemIndex = savedPos?.firstVisibleItemIndex ?: 0,
             firstVisibleItemScrollOffset = savedPos?.firstVisibleItemScrollOffset ?: 0
         )
+    }
+
+    // After a refresh that brings read posts back, scroll to top
+    var prevIsLoading by remember { mutableStateOf(false) }
+    var prevHideRead by remember { mutableStateOf(uiState.hideReadPosts) }
+    LaunchedEffect(uiState.isLoading, uiState.hideReadPosts) {
+        if (prevIsLoading && !uiState.isLoading && !uiState.hideReadPosts && prevHideRead) {
+            coroutineScope.launch { listState.animateScrollToItem(0) }
+        }
+        prevIsLoading = uiState.isLoading
+        prevHideRead = uiState.hideReadPosts
     }
 
     // Save scroll position continuously to ViewModel
@@ -251,6 +264,11 @@ fun RedditFeedRoute(
         scrollToTop()
     }
 
+    val handlePostSelected: (RedditPost) -> Unit = { post ->
+        viewModel.markPostRead(post.id)
+        onPostSelected(post)
+    }
+
     RedditFeedScreen(
         uiState = uiState,
         subredditOptions = viewModel.subredditOptions,
@@ -259,7 +277,7 @@ fun RedditFeedRoute(
         onSelectSubreddit = handleSelectSubreddit,
         onSelectSort = handleSelectSort,
         onSelectTopTimeRange = handleSelectTopTime,
-        onPostSelected = onPostSelected,
+        onPostSelected = handlePostSelected,
         onRetry = viewModel::refresh,
         onTitleTapped = scrollToTop,
         onSearchClick = onSearchClick,
@@ -310,6 +328,8 @@ fun RedditFeedScreen(
     val spacing = MaterialSpacing
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val coroutineScope = rememberCoroutineScope()
+    // Preserve side sheet scroll between openings within this screen
+    val sideSheetScrollState = remember { ScrollState(0) }
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -359,6 +379,7 @@ fun RedditFeedScreen(
                     subredditOptions = subredditOptions,
                     onSubredditTapped = {},
                     onPostSelected = {},
+                    readPostIds = uiState.readPostIds,
                     modifier = Modifier.fillMaxSize(),
                     listState = previousListState,
                     onSwipeBack = {},
@@ -382,13 +403,14 @@ fun RedditFeedScreen(
                 )
                 else -> {
                     PostList(
-                        posts = uiState.posts,
+                        posts = if (uiState.hideReadPosts) uiState.posts.filter { it.id !in uiState.readPostIds } else uiState.posts,
                         isRefreshing = uiState.isLoading,
                         onRefresh = onRetry,
                         selectedSubreddit = uiState.selectedSubreddit,
                         subredditOptions = subredditOptions,
                         onSubredditTapped = { showSubredditSheet = true },
                         onPostSelected = onPostSelected,
+                        readPostIds = uiState.readPostIds,
                         modifier = Modifier.fillMaxSize(),
                         listState = feedListState,
                         onSwipeBack = onSwipeBack,
@@ -421,7 +443,8 @@ fun RedditFeedScreen(
                 onSearchClick = onSearchClick,
                 subredditIcons = uiState.subredditIcons,
                 exploreSubreddits = SubredditCatalog.exploreSubreddits,
-                onSettingsClick = onSettingsClick
+                onSettingsClick = onSettingsClick,
+                scrollState = sideSheetScrollState
             )
 
             // Floating Toolbar
@@ -450,9 +473,9 @@ fun RedditFeedScreen(
                                 iconSize = 20.dp
                             ),
                             FloatingToolbarButton(
-                                icon = ImageVector.vectorResource(id = R.drawable.ic_tiktok),
-                                contentDescription = "TikTok mode",
-                                onClick = onVideoFeedClick,
+                                icon = ImageVector.vectorResource(id = R.drawable.ic_read_posts),
+                                contentDescription = if (uiState.hideReadPosts) "Show read posts" else "Hide read posts",
+                                onClick = { viewModel?.toggleHideReadPosts() },
                                 iconTint = SubredditColor,
                                 iconSize = 20.dp
                             ),
@@ -673,6 +696,7 @@ private fun PostList(
     subredditOptions: List<String>,
     onSubredditTapped: () -> Unit,
     onPostSelected: (RedditPost) -> Unit,
+    readPostIds: Set<String>,
     modifier: Modifier = Modifier,
     listState: LazyListState,
     onSwipeBack: () -> Unit,
@@ -825,7 +849,9 @@ private fun PostList(
                     onImageClick = onImageClick,
                     onYouTubeSelected = onYouTubeSelected,
                     onSubredditSelected = onSubredditSelected,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(if (readPostIds.contains(post.id)) 0.55f else 1f)
                 )
             }
             if (isAppending) {
@@ -918,20 +944,22 @@ internal fun RedditPostItem(
             ) {
                 Text(
                     text = formattedTitle,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = TitleColor
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.sm)
                 ) {
-                    Text(
-                        text = domainLabel,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (post.media !is RedditPostMedia.Link) {
+                        Text(
+                            text = domainLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     if (post.isStickied) {
                         Surface(
                             color = PinnedLabelColor.copy(alpha = 0.18f),

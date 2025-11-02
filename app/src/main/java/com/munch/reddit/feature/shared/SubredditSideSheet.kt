@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
@@ -40,6 +41,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -72,12 +75,26 @@ fun SubredditSideSheet(
     width: Dp = 280.dp,
     subredditIcons: Map<String, String?> = emptyMap(),
     exploreSubreddits: List<String> = emptyList(),
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    scrollState: ScrollState? = null
 ) {
-    val sheetScrollState = rememberScrollState()
+    val sheetScrollState = scrollState ?: rememberScrollState()
     val dragOffsetX = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
     val dragThreshold = 100f
+
+    // Save scroll position when sheet closes to restore it exactly when reopening
+    val savedScrollValue = remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(visible) {
+        if (visible) {
+            // Restore scroll position when sheet opens
+            sheetScrollState.scrollTo(savedScrollValue.intValue)
+        } else {
+            // Save scroll position when sheet closes
+            savedScrollValue.intValue = sheetScrollState.value
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
         AnimatedVisibility(

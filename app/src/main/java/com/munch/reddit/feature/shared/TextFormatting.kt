@@ -382,7 +382,8 @@ fun LinkifiedText(
     onLinkClick: ((String) -> Unit)? = null,
     onImageClick: ((String) -> Unit)? = null,
     onSubredditClick: ((String) -> Unit)? = null,
-    onTextClick: (() -> Unit)? = null
+    onTextClick: (() -> Unit)? = null,
+    onLongPress: (() -> Unit)? = null
 ) {
     val allowSubredditClick = onSubredditClick != null
     val annotated = remember(text, htmlText, linkColor, allowSubredditClick, quoteColor) {
@@ -401,36 +402,41 @@ fun LinkifiedText(
         result.trimTrailingWhitespace()
     }
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val pointerModifier = if (onLinkClick != null || onImageClick != null || onSubredditClick != null || onTextClick != null) {
-        Modifier.pointerInput(annotated, onLinkClick, onImageClick, onSubredditClick, onTextClick) {
-            detectTapGestures { offsetPosition ->
-                val layout = layoutResult ?: return@detectTapGestures
-                val offset = layout.getOffsetForPosition(offsetPosition)
-                val imageAnnotation = annotated.getStringAnnotations(IMAGE_TAG, offset, offset).firstOrNull()
-                if (imageAnnotation != null) {
-                    val target = imageAnnotation.item
-                    if (target.isNotBlank()) {
-                        onImageClick?.invoke(target)
+    val pointerModifier = if (onLinkClick != null || onImageClick != null || onSubredditClick != null || onTextClick != null || onLongPress != null) {
+        Modifier.pointerInput(annotated, onLinkClick, onImageClick, onSubredditClick, onTextClick, onLongPress) {
+            detectTapGestures(
+                onLongPress = {
+                    onLongPress?.invoke()
+                },
+                onTap = { offsetPosition ->
+                    val layout = layoutResult ?: return@detectTapGestures
+                    val offset = layout.getOffsetForPosition(offsetPosition)
+                    val imageAnnotation = annotated.getStringAnnotations(IMAGE_TAG, offset, offset).firstOrNull()
+                    if (imageAnnotation != null) {
+                        val target = imageAnnotation.item
+                        if (target.isNotBlank()) {
+                            onImageClick?.invoke(target)
+                        }
+                        return@detectTapGestures
                     }
-                    return@detectTapGestures
-                }
-                val linkAnnotation = annotated.getStringAnnotations(LINK_TAG, offset, offset).firstOrNull()
-                if (linkAnnotation != null) {
-                    val target = linkAnnotation.item
-                    if (target.isLikelyImageUrl() && onImageClick != null) {
-                        onImageClick(target)
-                    } else {
-                        onLinkClick?.invoke(target)
+                    val linkAnnotation = annotated.getStringAnnotations(LINK_TAG, offset, offset).firstOrNull()
+                    if (linkAnnotation != null) {
+                        val target = linkAnnotation.item
+                        if (target.isLikelyImageUrl() && onImageClick != null) {
+                            onImageClick(target)
+                        } else {
+                            onLinkClick?.invoke(target)
+                        }
+                        return@detectTapGestures
                     }
-                    return@detectTapGestures
+                    val subredditAnnotation = annotated.getStringAnnotations(SUBREDDIT_TAG, offset, offset).firstOrNull()
+                    if (subredditAnnotation != null) {
+                        onSubredditClick?.invoke(subredditAnnotation.item)
+                        return@detectTapGestures
+                    }
+                    onTextClick?.invoke()
                 }
-                val subredditAnnotation = annotated.getStringAnnotations(SUBREDDIT_TAG, offset, offset).firstOrNull()
-                if (subredditAnnotation != null) {
-                    onSubredditClick?.invoke(subredditAnnotation.item)
-                    return@detectTapGestures
-                }
-                onTextClick?.invoke()
-            }
+            )
         }
     } else {
         Modifier
