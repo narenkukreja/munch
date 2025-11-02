@@ -14,13 +14,11 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -979,22 +977,7 @@ private fun PostHeader(
         if (post.selfText.isNotBlank()) {
             var isBodyExpanded by rememberSaveable(post.id) { mutableStateOf(true) }
             val collapsedInteraction = remember { MutableInteractionSource() }
-            AnimatedVisibility(
-                visible = isBodyExpanded,
-                enter = expandVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeIn(),
-                exit = shrinkVertically(
-                    shrinkTowards = Alignment.Top,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) + fadeOut()
-            ) {
+            if (isBodyExpanded) {
                 LinkifiedText(
                     text = post.selfText,
                     htmlText = post.selfTextHtml,
@@ -1009,8 +992,7 @@ private fun PostHeader(
                     onImageClick = onOpenImage,
                     onTextClick = { isBodyExpanded = false }
                 )
-            }
-            if (!isBodyExpanded) {
+            } else {
                 Text(
                     text = "Post text hidden - tap to show",
                     color = MetaInfoColor,
