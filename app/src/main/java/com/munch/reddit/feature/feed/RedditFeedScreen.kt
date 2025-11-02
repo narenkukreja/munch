@@ -167,13 +167,16 @@ fun RedditFeedRoute(
     }
 
     // After a refresh that brings read posts back, scroll to top
-    var prevIsLoading by remember { mutableStateOf(false) }
     var prevHideRead by remember { mutableStateOf(uiState.hideReadPosts) }
-    LaunchedEffect(uiState.isLoading, uiState.hideReadPosts) {
-        if (prevIsLoading && !uiState.isLoading && !uiState.hideReadPosts && prevHideRead) {
-            coroutineScope.launch { listState.animateScrollToItem(0) }
+    var pendingScrollToTop by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.hideReadPosts, uiState.isLoading) {
+        if (prevHideRead && !uiState.hideReadPosts && uiState.isLoading) {
+            pendingScrollToTop = true
         }
-        prevIsLoading = uiState.isLoading
+        if (!uiState.isLoading && pendingScrollToTop) {
+            listState.scrollToItem(0)
+            pendingScrollToTop = false
+        }
         prevHideRead = uiState.hideReadPosts
     }
 
