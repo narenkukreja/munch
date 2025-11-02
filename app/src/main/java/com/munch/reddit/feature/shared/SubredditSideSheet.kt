@@ -30,7 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -52,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,6 +62,8 @@ import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import com.munch.reddit.ui.theme.MaterialSpacing
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.min
 
 @Composable
 fun SubredditSideSheet(
@@ -266,6 +268,15 @@ fun SubredditSideSheet(
                             val filteredSubreddits = subreddits.filter {
                                 !it.equals("all", ignoreCase = true)
                             }
+                            val filteredExplore = exploreSubreddits.filter { explore ->
+                                !subreddits.any { it.equals(explore, ignoreCase = true) }
+                            }
+                            val favoritesResult = remember(filteredSubreddits) {
+                                computeFallbackColors(filteredSubreddits)
+                            }
+                            val exploreResult = remember(filteredExplore, favoritesResult.lastHue) {
+                                computeFallbackColors(filteredExplore, favoritesResult.lastHue)
+                            }
 
                             if (filteredSubreddits.isNotEmpty()) {
                                 Text(
@@ -285,14 +296,10 @@ fun SubredditSideSheet(
                                         subredditIcons = subredditIcons,
                                         onSelectSubreddit = onSelectSubreddit,
                                         onDismissRequest = onDismissRequest,
-                                        spacing = spacing
+                                        spacing = spacing,
+                                        fallbackColor = favoritesResult.colors[subreddit]
                                     )
                                 }
-                            }
-
-                            // Filter out duplicates from explore list
-                            val filteredExplore = exploreSubreddits.filter { explore ->
-                                !subreddits.any { it.equals(explore, ignoreCase = true) }
                             }
 
                             // Explore section
@@ -315,7 +322,8 @@ fun SubredditSideSheet(
                                         subredditIcons = subredditIcons,
                                         onSelectSubreddit = onSelectSubreddit,
                                         onDismissRequest = onDismissRequest,
-                                        spacing = spacing
+                                        spacing = spacing,
+                                        fallbackColor = exploreResult.colors[subreddit]
                                     )
                                 }
                             }
@@ -334,7 +342,8 @@ private fun SubredditItem(
     subredditIcons: Map<String, String?>,
     onSelectSubreddit: (String) -> Unit,
     onDismissRequest: () -> Unit,
-    spacing: com.munch.reddit.ui.theme.MunchSpacing
+    spacing: com.munch.reddit.ui.theme.MunchSpacing,
+    fallbackColor: Color? = null
 ) {
     val isSelected = subreddit.equals(selectedSubreddit, ignoreCase = true)
     val normalized = subreddit.removePrefix("r/").removePrefix("R/").trim()
@@ -384,15 +393,17 @@ private fun SubredditItem(
                 contentScale = ContentScale.Crop
             )
         } else {
+            val background = fallbackColor ?: fallbackColorFor(subreddit)
             Box(
-                modifier = avatarModifier,
+                modifier = avatarModifier
+                    .background(color = background, shape = CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_no_image),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = "r/",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
                 )
             }
         }
@@ -403,6 +414,59 @@ private fun SubredditItem(
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
+}
+
+private fun fallbackColorFor(subreddit: String): Color {
+    val hue = baseFallbackHue(subreddit).toFloat()
+    return colorFromHue(hue)
+}
+
+private fun computeFallbackColors(
+    subreddits: List<String>,
+    initialHue: Float? = null
+): FallbackColorComputation {
+    if (subreddits.isEmpty()) return FallbackColorComputation(emptyMap(), initialHue)
+    val colors = mutableMapOf<String, Color>()
+    var lastHue = initialHue
+    for (sub in subreddits) {
+        var hue = baseFallbackHue(sub).toFloat()
+        if (lastHue != null && hueDistance(hue, lastHue!!) < 25f) {
+            hue = (lastHue!! + 47f) % 360f
+        }
+        val color = colorFromHue(hue)
+        colors[sub] = color
+        lastHue = hue
+    }
+    return FallbackColorComputation(colors, lastHue)
+}
+
+private fun colorFromHue(hue: Float): Color {
+    return Color.hsl(
+        hue = hue,
+        saturation = 0.55f,
+        lightness = 0.45f
+    )
+}
+
+private fun baseFallbackHue(subreddit: String): Int {
+    val normalized = subreddit
+        .removePrefix("r/")
+        .removePrefix("R/")
+        .trim()
+        .lowercase()
+    if (normalized.isBlank()) return 210
+    val hash = normalized.hashCode()
+    return ((hash % 360) + 360) % 360
+}
+
+private data class FallbackColorComputation(
+    val colors: Map<String, Color>,
+    val lastHue: Float?
+)
+
+private fun hueDistance(a: Float, b: Float): Float {
+    val diff = abs(a - b) % 360f
+    return min(diff, 360f - diff)
 }
 
 @Composable
