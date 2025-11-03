@@ -1,5 +1,6 @@
 package com.munch.reddit.di
 
+import androidx.lifecycle.SavedStateHandle
 import com.munch.reddit.feature.auth.AuthViewModel
 import com.munch.reddit.feature.detail.PostDetailViewModel
 import com.munch.reddit.feature.feed.RedditFeedViewModel
@@ -9,6 +10,13 @@ import org.koin.dsl.module
 
 val viewModelModule = module {
     viewModelOf(::AuthViewModel)
-    viewModelOf(::RedditFeedViewModel)
+    viewModel { (handle: SavedStateHandle) ->
+        RedditFeedViewModel(
+            savedStateHandle = handle,
+            repository = get(),
+            subredditRepository = get(),
+            appPreferences = get()
+        )
+    }
     viewModel { (permalink: String) -> PostDetailViewModel(permalink, get(), get()) }
 }

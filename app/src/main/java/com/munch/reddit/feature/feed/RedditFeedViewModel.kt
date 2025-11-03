@@ -1,5 +1,6 @@
 package com.munch.reddit.feature.feed
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.munch.reddit.data.repository.RedditRepository
@@ -7,6 +8,7 @@ import com.munch.reddit.data.repository.SubredditRepository
 import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.feature.shared.SubredditSideSheetScrollState
+import java.io.Serializable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class RedditFeedViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val repository: RedditRepository,
     private val subredditRepository: SubredditRepository,
     private val appPreferences: com.munch.reddit.data.AppPreferences
@@ -70,7 +73,7 @@ class RedditFeedViewModel(
     data class ScrollPosition(
         val firstVisibleItemIndex: Int = 0,
         val firstVisibleItemScrollOffset: Int = 0
-    )
+    ) : Serializable
 
     private data class CachedFeed(
         val posts: List<RedditPost>,
@@ -83,7 +86,89 @@ class RedditFeedViewModel(
     private data class SortState(
         val sort: FeedSortOption,
         val topTimeRange: TopTimeRange
-    )
+    ) : Serializable
+
+    private fun restoreFromSavedState() {
+        val savedSubreddit = savedStateHandle.get<String>(KEY_CURRENT_SUBREDDIT)?.takeIf { it.isNotBlank() }
+        if (!savedSubreddit.isNullOrBlank()) {
+            currentSubreddit = savedSubreddit
+        }
+
+        savedStateHandle.get<String>(KEY_CURRENT_SORT)?.let { sortName ->
+            runCatching { FeedSortOption.valueOf(sortName) }
+                .getOrNull()
+                ?.let { restored -> currentSortOption = restored }
+        }
+
+        savedStateHandle.get<String>(KEY_CURRENT_TOP_TIME_RANGE)?.let { rangeName ->
+            runCatching { TopTimeRange.valueOf(rangeName) }
+                .getOrNull()
+                ?.let { restored -> currentTopTimeRange = restored }
+        }
+
+        savedStateHandle.get<ArrayList<String>>(KEY_SUBREDDIT_STACK)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { restoredStack ->
+                subredditStack.clear()
+                subredditStack.addAll(restoredStack)
+            }
+
+        if (!subredditStack.contains(currentSubreddit)) {
+            subredditStack.add(currentSubreddit)
+        }
+
+        savedStateHandle.get<HashMap<String, SortState>>(KEY_SUBREDDIT_SORT_STATE)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { restoredMap ->
+                subredditSortState.clear()
+                subredditSortState.putAll(restoredMap)
+            }
+
+        val currentKey = currentSubreddit.lowercase()
+        if (!subredditSortState.containsKey(currentKey)) {
+            subredditSortState[currentKey] =
+                SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
+        }
+
+        savedStateHandle.get<HashMap<String, ScrollPosition>>(KEY_SCROLL_POSITION_CACHE)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { restoredPositions ->
+                scrollPositionCache.clear()
+                scrollPositionCache.putAll(restoredPositions)
+            }
+
+        savedStateHandle.get<Boolean>(KEY_HIDE_READ_POSTS)?.let { hideRead ->
+            _uiState.update { state -> state.copy(hideReadPosts = hideRead) }
+        }
+
+        savedStateHandle.get<Int>(KEY_SIDE_SHEET_SCROLL)?.let { savedScroll ->
+            SubredditSideSheetScrollState.update(savedScroll)
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                selectedSubreddit = currentSubreddit,
+                selectedSort = currentSortOption,
+                selectedTopTimeRange = currentTopTimeRange
+            )
+        }
+    }
+
+    private fun persistSelectionState() {
+        savedStateHandle[KEY_CURRENT_SUBREDDIT] = currentSubreddit
+        savedStateHandle[KEY_CURRENT_SORT] = currentSortOption.name
+        savedStateHandle[KEY_CURRENT_TOP_TIME_RANGE] = currentTopTimeRange.name
+        savedStateHandle[KEY_SUBREDDIT_STACK] = ArrayList(subredditStack)
+        savedStateHandle[KEY_SUBREDDIT_SORT_STATE] = HashMap(subredditSortState)
+    }
+
+    private fun persistScrollPositions() {
+        savedStateHandle[KEY_SCROLL_POSITION_CACHE] = HashMap(scrollPositionCache)
+    }
+
+    private fun persistHideRead() {
+        savedStateHandle[KEY_HIDE_READ_POSTS] = _uiState.value.hideReadPosts
+    }
 
     private fun cacheKey(
         subreddit: String = currentSubreddit,
@@ -104,10 +189,13 @@ class RedditFeedViewModel(
     }
 
     fun updateSideSheetScroll(position: Int) {
-        SubredditSideSheetScrollState.update(position)
+        val normalized = position.coerceAtLeast(0)
+        SubredditSideSheetScrollState.update(normalized)
+        savedStateHandle[KEY_SIDE_SHEET_SCROLL] = normalized
     }
 
-    fun getSideSheetScroll(): Int = SubredditSideSheetScrollState.current()
+    fun getSideSheetScroll(): Int =
+        savedStateHandle.get<Int>(KEY_SIDE_SHEET_SCROLL) ?: SubredditSideSheetScrollState.current()
 
     private fun enqueueIconFetch(subreddit: String) {
         viewModelScope.launch {
@@ -116,6 +204,7 @@ class RedditFeedViewModel(
     }
 
     init {
+        restoreFromSavedState()
         refresh()
         prefetchSubredditIcons()
         // Load read posts from preferences
@@ -137,8 +226,10 @@ class RedditFeedViewModel(
         isLoadingNextPage = false
         // On refresh, always show read posts again
         _uiState.update { it.copy(hideReadPosts = false) }
+        persistHideRead()
         subredditSortState[currentSubreddit.lowercase()] =
             SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
+        persistSelectionState()
         viewModelScope.launch {
             _uiState.update { state ->
                 val initialPosts = if (clearExisting) emptyList() else state.posts
@@ -282,6 +373,8 @@ class RedditFeedViewModel(
         subredditStack.add(target)
         // When going forward, clear saved scroll position for fresh start
         scrollPositionCache.remove(target.lowercase())
+        persistScrollPositions()
+        persistSelectionState()
         // If we have a cached feed for this subreddit with current sort/time, use it
         val cached = feedCache[cacheKey(subreddit = currentSubreddit)]
         if (cached != null && cached.sort == FeedSortOption.HOT && cached.topTimeRange == TopTimeRange.DAY) {
@@ -320,6 +413,7 @@ class RedditFeedViewModel(
             ?: SortState(sort = FeedSortOption.HOT, topTimeRange = TopTimeRange.DAY)
         currentSortOption = restoredSortState.sort
         currentTopTimeRange = restoredSortState.topTimeRange
+        persistSelectionState()
         // Get saved scroll position for the previous subreddit
         val savedScrollPosition = getScrollPosition(currentSubreddit)
         // Set navigating back flag for animation
@@ -361,6 +455,7 @@ class RedditFeedViewModel(
         currentSortOption = sortOption
         subredditSortState[currentSubreddit.lowercase()] =
             SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
+        persistSelectionState()
         refresh()
     }
 
@@ -371,6 +466,7 @@ class RedditFeedViewModel(
         currentTopTimeRange = timeRange
         subredditSortState[currentSubreddit.lowercase()] =
             SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
+        persistSelectionState()
         if (currentSortOption == FeedSortOption.TOP) {
             refresh()
         } else {
@@ -449,6 +545,7 @@ class RedditFeedViewModel(
             firstVisibleItemIndex = firstVisibleItemIndex,
             firstVisibleItemScrollOffset = firstVisibleItemScrollOffset
         )
+        persistScrollPositions()
     }
 
     fun getScrollPosition(subreddit: String): ScrollPosition? {
@@ -479,6 +576,14 @@ class RedditFeedViewModel(
 
     companion object {
         private const val DEFAULT_LIMIT = 50
+        private const val KEY_CURRENT_SUBREDDIT = "reddit_feed.current_subreddit"
+        private const val KEY_CURRENT_SORT = "reddit_feed.current_sort"
+        private const val KEY_CURRENT_TOP_TIME_RANGE = "reddit_feed.current_top_time_range"
+        private const val KEY_SUBREDDIT_STACK = "reddit_feed.subreddit_stack"
+        private const val KEY_SUBREDDIT_SORT_STATE = "reddit_feed.subreddit_sort_state"
+        private const val KEY_SCROLL_POSITION_CACHE = "reddit_feed.scroll_positions"
+        private const val KEY_HIDE_READ_POSTS = "reddit_feed.hide_read_posts"
+        private const val KEY_SIDE_SHEET_SCROLL = "reddit_feed.side_sheet_scroll"
     }
 
     fun markPostRead(id: String) {
@@ -491,5 +596,6 @@ class RedditFeedViewModel(
     fun toggleHideReadPosts() {
         val newValue = !_uiState.value.hideReadPosts
         _uiState.update { it.copy(hideReadPosts = newValue) }
+        persistHideRead()
     }
 }
