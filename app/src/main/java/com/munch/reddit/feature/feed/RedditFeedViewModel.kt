@@ -296,7 +296,8 @@ class RedditFeedViewModel(
                     selectedSort = FeedSortOption.HOT,
                     selectedTopTimeRange = TopTimeRange.DAY,
                     hasMore = cached.hasMore,
-                    scrollPosition = null  // Clear scroll position when going forward
+                    scrollPosition = null,  // Clear scroll position when going forward
+                    hideReadPosts = false
                 )
             }
         } else {
@@ -342,7 +343,8 @@ class RedditFeedViewModel(
                     selectedTopTimeRange = currentTopTimeRange,
                     hasMore = cached.hasMore,
                     scrollPosition = savedScrollPosition,
-                    isNavigatingBack = false
+                    isNavigatingBack = false,
+                    hideReadPosts = false
                 )
             }
         } else {
