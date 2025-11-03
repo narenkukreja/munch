@@ -1165,12 +1165,23 @@ private fun CommentItem(
                         }
                     }
                     if (node.isAutoModerator) {
-                        Text(
-                            text = "MOD",
-                            color = ModLabelColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                        Surface(
+                            color = ModLabelColor.copy(alpha = 0.18f),
+                            contentColor = ModLabelColor,
+                            shape = RoundedCornerShape(999.dp),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp
+                        ) {
+                            Text(
+                                text = "MOD",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(
+                                    horizontal = spacing.sm,
+                                    vertical = spacing.xs * 0.75f
+                                )
+                            )
+                        }
                     }
                     if (node.isOp) {
                         Text(
