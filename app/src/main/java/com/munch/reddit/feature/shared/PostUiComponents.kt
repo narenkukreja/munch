@@ -96,6 +96,9 @@ fun RedditPostMediaContent(
         is RedditPostMedia.Gallery -> RedditPostGallery(media, modifier, onImageClick, onGalleryClick)
         is RedditPostMedia.YouTube -> RedditPostYouTube(media, modifier, onYoutubeClick)
         is RedditPostMedia.RedGifs -> RedditPostRedGifs(media, modifier)
+        is RedditPostMedia.Streamable -> RedditPostStreamable(media, modifier)
+        is RedditPostMedia.StreamFF -> RedditPostStreamFF(media, modifier)
+        is RedditPostMedia.StreamIn -> RedditPostStreamIn(media, modifier)
     }
 }
 
@@ -563,6 +566,176 @@ fun RedditPostRedGifs(
                 settings.javaScriptEnabled = true
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
+                webViewClient = WebViewClient()
+                loadUrl(media.embedUrl)
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RedditPostStreamable(
+    media: RedditPostMedia.Streamable,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var videoUrl by remember(media.shortcode) { mutableStateOf<String?>(null) }
+    var isLoading by remember(media.shortcode) { mutableStateOf(true) }
+    var hasError by remember(media.shortcode) { mutableStateOf(false) }
+    val streamableApi = remember { org.koin.core.context.GlobalContext.get().get<com.munch.reddit.data.remote.StreamableApiService>() }
+
+    LaunchedEffect(media.shortcode) {
+        isLoading = true
+        hasError = false
+        try {
+            val response = streamableApi.getVideo(media.shortcode)
+            // Try multiple approaches to get the video URL
+            val rawUrl = when {
+                // First try the files map with mp4
+                response.files?.get("mp4")?.url?.isNotBlank() == true -> response.files["mp4"]?.url
+                // Fallback to mp4-mobile
+                response.files?.get("mp4-mobile")?.url?.isNotBlank() == true -> response.files["mp4-mobile"]?.url
+                // Check if status indicates the video is still processing
+                response.status != null && response.status == 2 -> {
+                    // Status 2 means ready, try url field
+                    response.url?.takeIf { it.isNotBlank() }
+                }
+                else -> null
+            }
+
+            // Ensure URL uses HTTPS protocol
+            videoUrl = rawUrl?.let { url ->
+                when {
+                    url.startsWith("https://") -> url
+                    url.startsWith("http://") -> url.replace("http://", "https://")
+                    url.startsWith("//") -> "https:$url"
+                    else -> url
+                }
+            }
+
+            if (videoUrl == null) {
+                hasError = true
+                android.util.Log.e("StreamableVideo", "Failed to get video URL for ${media.shortcode}. Response: status=${response.status}, files=${response.files?.keys}")
+            } else {
+                android.util.Log.d("StreamableVideo", "Successfully got video URL for ${media.shortcode}: $videoUrl")
+            }
+            isLoading = false
+        } catch (e: Exception) {
+            android.util.Log.e("StreamableVideo", "Error loading video ${media.shortcode}", e)
+            hasError = true
+            isLoading = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+    ) {
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(SpacerBackgroundColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Loading video...",
+                        color = TitleColor.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            hasError || videoUrl == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(SpacerBackgroundColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Failed to load video",
+                            color = MetaInfoColor,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        if (media.thumbnailUrl != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(media.thumbnailUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                // Play the video using the RedditPostVideo component
+                RedditPostVideo(
+                    media = RedditPostMedia.Video(
+                        url = videoUrl!!,
+                        hasAudio = true,
+                        width = 1280,
+                        height = 720,
+                        durationSeconds = null
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RedditPostStreamFF(
+    media: RedditPostMedia.StreamFF,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f),
+        factory = { context ->
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.domStorageEnabled = true
+                webViewClient = WebViewClient()
+                loadUrl(media.embedUrl)
+            }
+        }
+    )
+}
+
+@Composable
+fun RedditPostStreamIn(
+    media: RedditPostMedia.StreamIn,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f),
+        factory = { context ->
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.domStorageEnabled = true
                 webViewClient = WebViewClient()
                 loadUrl(media.embedUrl)
             }

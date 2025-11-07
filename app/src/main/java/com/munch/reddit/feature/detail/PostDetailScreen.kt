@@ -901,12 +901,12 @@ private fun PostHeader(
                 fontWeight = FontWeight.Bold
             )
         }
-        if (displayDomain.isNotBlank() || post.isStickied || post.isNsfw) {
+        if ((displayDomain.isNotBlank() && post.media !is RedditPostMedia.Link) || post.isStickied) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
-                if (displayDomain.isNotBlank()) {
+                if (displayDomain.isNotBlank() && post.media !is RedditPostMedia.Link) {
                     Text(
                         text = displayDomain,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1190,12 +1190,23 @@ private fun CommentItem(
                         }
                     }
                     if (node.isOp) {
-                        Text(
-                            text = "OP",
-                            color = OpLabelColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                        Surface(
+                            color = OpLabelColor.copy(alpha = 0.18f),
+                            contentColor = OpLabelColor,
+                            shape = RoundedCornerShape(999.dp),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp
+                        ) {
+                            Text(
+                                text = "OP",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(
+                                    horizontal = spacing.sm,
+                                    vertical = spacing.xs * 0.75f
+                                )
+                            )
+                        }
                     }
                 }
                 Row(
@@ -1608,6 +1619,9 @@ private fun RedditPostMedia.shareableUrl(): String? = when (this) {
     is RedditPostMedia.Gallery -> images.firstOrNull()?.url?.takeIf { it.isNotBlank() }
     is RedditPostMedia.YouTube -> watchUrl.takeIf { it.isNotBlank() }
     is RedditPostMedia.RedGifs -> embedUrl.takeIf { it.isNotBlank() }
+    is RedditPostMedia.Streamable -> url.takeIf { it.isNotBlank() }
+    is RedditPostMedia.StreamFF -> url.takeIf { it.isNotBlank() }
+    is RedditPostMedia.StreamIn -> url.takeIf { it.isNotBlank() }
 }
 
 @Composable

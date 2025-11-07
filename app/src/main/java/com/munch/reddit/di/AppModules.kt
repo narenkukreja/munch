@@ -12,6 +12,7 @@ import com.munch.reddit.data.auth.network.OAuthHostInterceptor
 import com.munch.reddit.data.auth.network.OAuthTokenAuthenticator
 import com.munch.reddit.data.auth.storage.OAuthStorage
 import com.munch.reddit.data.remote.RedditApiService
+import com.munch.reddit.data.remote.StreamableApiService
 import com.munch.reddit.data.repository.RedditRepositoryImpl
 import com.munch.reddit.data.repository.RedditRepository
 import com.munch.reddit.data.subreddit.SubredditIconStorage
@@ -24,6 +25,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 private const val API_BASE_URL = "https://www.reddit.com/"
 private const val AUTH_BASE_URL = "https://www.reddit.com/"
+private const val STREAMABLE_API_BASE_URL = "https://api.streamable.com/"
 
 private fun resolvedUserAgent(context: Context): String {
     val appId = context.packageName
@@ -91,6 +93,15 @@ val networkModule = module {
 
     single<RedditApiService> {
         get<Retrofit>().create(RedditApiService::class.java)
+    }
+
+    single<StreamableApiService> {
+        Retrofit.Builder()
+            .baseUrl(STREAMABLE_API_BASE_URL)
+            .client(OkHttpClient.Builder().build())
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(StreamableApiService::class.java)
     }
 }
 

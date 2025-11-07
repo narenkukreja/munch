@@ -60,4 +60,22 @@ sealed class RedditPostMedia {
         val width: Int?,
         val height: Int?
     ) : RedditPostMedia()
+
+    data class Streamable(
+        val shortcode: String,
+        val url: String,
+        val thumbnailUrl: String?
+    ) : RedditPostMedia()
+
+    data class StreamFF(
+        val url: String,
+        val embedUrl: String,
+        val thumbnailUrl: String?
+    ) : RedditPostMedia()
+
+    data class StreamIn(
+        val url: String,
+        val embedUrl: String,
+        val thumbnailUrl: String?
+    ) : RedditPostMedia()
 }

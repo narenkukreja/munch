@@ -233,14 +233,39 @@ private fun RedditPostDto.resolveMedia(
             thumbnailUrl = oembed?.thumbnailUrl.cleanUrl() ?: normalizedThumbnail,
             title = oembed?.title
         )
-        oembed.isStreamable() -> RedditPostMedia.Link(
-            url = destinationUrl.orEmpty().ifBlank { oembed?.providerUrl.cleanUrl().orEmpty() },
-            previewImageUrl = oembed?.thumbnailUrl.cleanUrl()
+        oembed.isStreamable() -> {
+            val shortcode = destinationUrl.extractStreamableShortcode()
+            if (shortcode != null) {
+                RedditPostMedia.Streamable(
+                    shortcode = shortcode,
+                    url = destinationUrl.orEmpty(),
+                    thumbnailUrl = oembed?.thumbnailUrl.cleanUrl() ?: normalizedThumbnail
+                )
+            } else {
+                RedditPostMedia.Link(
+                    url = destinationUrl.orEmpty().ifBlank { oembed?.providerUrl.cleanUrl().orEmpty() },
+                    previewImageUrl = oembed?.thumbnailUrl.cleanUrl()
+                        ?: previewImage?.url
+                        ?: normalizedThumbnail,
+                    domain = resolvedDomain,
+                    previewWidth = previewImage?.width,
+                    previewHeight = previewImage?.height
+                )
+            }
+        }
+        destinationUrl.isStreamFF() -> RedditPostMedia.StreamFF(
+            url = destinationUrl.orEmpty(),
+            embedUrl = destinationUrl.orEmpty(),
+            thumbnailUrl = oembed?.thumbnailUrl.cleanUrl()
                 ?: previewImage?.url
-                ?: normalizedThumbnail,
-            domain = resolvedDomain,
-            previewWidth = previewImage?.width,
-            previewHeight = previewImage?.height
+                ?: normalizedThumbnail
+        )
+        destinationUrl.isStreamIn() -> RedditPostMedia.StreamIn(
+            url = destinationUrl.orEmpty(),
+            embedUrl = destinationUrl.orEmpty(),
+            thumbnailUrl = oembed?.thumbnailUrl.cleanUrl()
+                ?: previewImage?.url
+                ?: normalizedThumbnail
         )
         isDirectImagePost(destinationUrl, normalizedThumbnail, isRedditMediaDomain) -> {
             val imageUrl = previewImage?.url
@@ -307,6 +332,18 @@ private fun OEmbedDto?.isStreamable(): Boolean {
     val providerUrlLower = providerUrl.orEmpty().lowercase()
     val htmlLower = html.orEmpty().lowercase()
     return provider.contains("streamable") || providerUrlLower.contains("streamable.com") || htmlLower.contains("streamable.com")
+}
+
+private fun String?.isStreamFF(): Boolean {
+    if (this == null) return false
+    val urlLower = this.lowercase()
+    return urlLower.contains("streamff.com") || urlLower.contains("streamff.link")
+}
+
+private fun String?.isStreamIn(): Boolean {
+    if (this == null) return false
+    val urlLower = this.lowercase()
+    return urlLower.contains("streamin.link") || urlLower.contains("streamin.one") || urlLower.contains("streamin.top")
 }
 
 private fun OEmbedDto?.extractYouTubeId(fallbackUrl: String?): String {
@@ -412,6 +449,16 @@ private fun extractRedGifsEmbedUrl(htmlContent: String): String? {
     // Example: <iframe src="https://www.redgifs.com/ifr/jollyartisticstoat" ...>
     val srcPattern = Regex("""src="([^"]*redgifs\.com[^"]*)"""")
     return srcPattern.find(htmlContent)?.groupValues?.get(1)
+}
+
+private fun String?.extractStreamableShortcode(): String? {
+    if (this == null) return null
+    // Extract shortcode from URLs like:
+    // - https://streamable.com/abc123
+    // - https://www.streamable.com/abc123
+    // - streamable.com/abc123
+    val pattern = Regex("""streamable\.com/([a-zA-Z0-9]+)""")
+    return pattern.find(this)?.groupValues?.get(1)
 }
 
 private data class PreviewImageData(

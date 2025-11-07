@@ -16,7 +16,9 @@
       "WebFetch(domain:pierfrancescosoffritti.github.io)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:www.reddit.com)",
-      "WebFetch(domain:joebirch.co)"
+      "WebFetch(domain:joebirch.co)",
+      "WebFetch(domain:streamableapp.zendesk.com)",
+      "WebFetch(domain:support.streamable.com)"
     ],
     "deny": [],
     "ask": []
