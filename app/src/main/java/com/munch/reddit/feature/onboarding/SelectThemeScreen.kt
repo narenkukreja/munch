@@ -129,12 +129,6 @@ fun SelectThemeScreen(
                     modifier = Modifier.weight(1f),
                     onClick = { selectedThemeId = FeedThemePreset.Narwhal.id }
                 )
-                ThemeOptionButton(
-                    label = "Reddit",
-                    isSelected = selectedThemeId == FeedThemePreset.Reddit.id,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedThemeId = FeedThemePreset.Reddit.id }
-                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))

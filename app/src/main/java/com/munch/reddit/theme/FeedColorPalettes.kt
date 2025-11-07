@@ -50,25 +50,9 @@ private val narwhalPalette = FeedColorPalette(
     comment = Color(0xFF5B696C)
 )
 
-private val redditPalette = FeedColorPalette(
-    themeId = "reddit",
-    displayName = "Reddit",
-    postBackground = Color(0xFF1C1E2A),
-    spacerBackground = Color(0xFF0F131C),
-    title = Color(0xFFDFE3EF),
-    subreddit = Color(0xFF414465),
-    metaInfo = Color(0xFFBFC2D5),
-    pinnedLabel = Color(0xFF2ECC71),
-    modLabel = Color(0xFF2ECC71),
-    opLabel = Color(0xFFFF5252),
-    visualModLabel = Color(0xFF2ECC71),
-    postBorder = null
-)
-
 enum class FeedThemePreset(val palette: FeedColorPalette) {
     Wormi(wormiPalette),
-    Narwhal(narwhalPalette),
-    Reddit(redditPalette);
+    Narwhal(narwhalPalette);
 
     val id: String get() = palette.themeId
     val displayName: String get() = palette.displayName
@@ -77,12 +61,13 @@ enum class FeedThemePreset(val palette: FeedColorPalette) {
         fun fromId(themeId: String): FeedThemePreset = when (themeId.lowercase()) {
             Wormi.id -> Wormi
             Narwhal.id -> Narwhal
-            Reddit.id -> Reddit
+            // Graceful fallback for removed themes
+            "reddit" -> Wormi
             else -> Wormi
         }
 
         val allPalettes: List<FeedColorPalette> by lazy {
-            listOf(Wormi.palette, Narwhal.palette, Reddit.palette)
+            listOf(Wormi.palette, Narwhal.palette)
         }
     }
 }

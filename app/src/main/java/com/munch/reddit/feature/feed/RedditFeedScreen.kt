@@ -65,6 +65,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Text
@@ -81,6 +82,12 @@ import androidx.compose.material.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -248,6 +255,7 @@ fun RedditFeedScreen(
                     onSubredditTapped = {},
                     onPostSelected = {},
                     readPostIds = uiState.readPostIds,
+                    hideReadPosts = false,
                     modifier = Modifier.fillMaxSize(),
                     listState = previousListState,
                     onImageClick = {},
@@ -270,25 +278,26 @@ fun RedditFeedScreen(
                 )
                 else -> {
                     PostList(
-                        posts = if (uiState.hideReadPosts) uiState.posts.filter { it.id !in uiState.readPostIds } else uiState.posts,
+                        posts = uiState.posts,
                         isRefreshing = uiState.isLoading,
                         onRefresh = onRetry,
                         selectedSubreddit = uiState.selectedSubreddit,
                         subredditOptions = subredditOptions,
                         onSubredditTapped = { showSubredditSheet = true },
                         onPostSelected = onPostSelected,
-                    readPostIds = uiState.readPostIds,
-                    modifier = Modifier.fillMaxSize(),
-                    listState = feedListState,
-                    onImageClick = onImageClick,
-                    onGalleryPreview = onGalleryPreview,
-                    onYouTubeSelected = onYouTubeSelected,
-                    onSubredditSelected = onSelectSubreddit,
-                    onLoadMore = onLoadMore,
-                    isAppending = isAppending,
-                    canLoadMore = canLoadMore,
-                    contentPadding = PaddingValues(vertical = spacing.lg),
-                    onPostDismissed = onPostDismissed
+                        readPostIds = uiState.readPostIds,
+                        hideReadPosts = uiState.hideReadPosts,
+                        modifier = Modifier.fillMaxSize(),
+                        listState = feedListState,
+                        onImageClick = onImageClick,
+                        onGalleryPreview = onGalleryPreview,
+                        onYouTubeSelected = onYouTubeSelected,
+                        onSubredditSelected = onSelectSubreddit,
+                        onLoadMore = onLoadMore,
+                        isAppending = isAppending,
+                        canLoadMore = canLoadMore,
+                        contentPadding = PaddingValues(vertical = spacing.lg),
+                        onPostDismissed = onPostDismissed
                 )
 
                     // Show loading overlay when switching subreddits
@@ -332,6 +341,18 @@ fun RedditFeedScreen(
                                 icon = ImageVector.vectorResource(id = R.drawable.scroll_to_top_arrow),
                                 contentDescription = "Scroll to top",
                                 onClick = {
+                                    coroutineScope.launch {
+                                        feedListState.animateScrollToItem(0)
+                                    }
+                                },
+                                iconTint = SubredditColor,
+                                iconSize = 20.dp
+                            ),
+                            FloatingToolbarButton(
+                                icon = Icons.Default.Refresh,
+                                contentDescription = "Refresh feed",
+                                onClick = {
+                                    onRetry()
                                     coroutineScope.launch {
                                         feedListState.animateScrollToItem(0)
                                     }
@@ -564,6 +585,7 @@ private fun PostList(
     onSubredditTapped: () -> Unit,
     onPostSelected: (RedditPost) -> Unit,
     readPostIds: Set<String>,
+    hideReadPosts: Boolean,
     modifier: Modifier = Modifier,
     listState: LazyListState,
     onImageClick: (String) -> Unit,
@@ -576,6 +598,9 @@ private fun PostList(
     contentPadding: PaddingValues,
     onPostDismissed: (RedditPost) -> Unit = {}
 ) {
+    // Track dismissed posts for animation
+    var dismissedPostIds by remember { mutableStateOf(setOf<String>()) }
+
     LaunchedEffect(posts, canLoadMore, isAppending) {
         if (!canLoadMore || posts.isEmpty()) return@LaunchedEffect
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
@@ -607,7 +632,12 @@ private fun PostList(
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             items(
-                items = posts,
+                items = posts.filter { post ->
+                    val isRead = readPostIds.contains(post.id)
+                    val isDismissed = dismissedPostIds.contains(post.id)
+                    // Only include posts that should be visible
+                    !isDismissed && !(isRead && hideReadPosts)
+                },
                 key = { it.id },
                 contentType = { post ->
                     when {
@@ -620,7 +650,14 @@ private fun PostList(
             ) { post ->
                 val isRead = readPostIds.contains(post.id)
 
-                if (isRead) {
+                Box(
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(durationMillis = 300),
+                        fadeOutSpec = tween(durationMillis = 300),
+                        placementSpec = tween(durationMillis = 300)
+                    )
+                ) {
+                    if (isRead) {
                     // For read posts, don't use swipe to dismiss - just show the post
                     RedditPostItem(
                         post = post,
@@ -637,65 +674,72 @@ private fun PostList(
                             .alpha(0.55f)
                     )
                 } else {
-                    // For unread posts, enable swipe to dismiss
-                    val dismissState = rememberDismissState(
-                        confirmStateChange = { value ->
-                            if (value == DismissValue.DismissedToEnd) {
-                                onPostDismissed(post)
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    )
-                    SwipeToDismiss(
-                        state = dismissState,
-                        modifier = Modifier.fillMaxWidth(),
-                        directions = setOf(DismissDirection.StartToEnd),
-                        dismissThresholds = { FractionalThreshold(0.35f) },
-                        background = {
-                            val isSwipeActive = dismissState.progress.fraction > 0f
-                            val backgroundColor by animateColorAsState(
-                                targetValue = if (isSwipeActive) {
-                                    MaterialTheme.colorScheme.errorContainer
+                        // For unread posts, enable swipe to dismiss
+                        val dismissState = rememberDismissState(
+                            confirmStateChange = { value ->
+                                if (value == DismissValue.DismissedToEnd) {
+                                    // Add to dismissed set to trigger exit animation
+                                    dismissedPostIds = dismissedPostIds + post.id
+                                    // Delay the actual dismiss callback to allow animation to complete
+                                    kotlinx.coroutines.MainScope().launch {
+                                        kotlinx.coroutines.delay(300)
+                                        onPostDismissed(post)
+                                    }
+                                    true
                                 } else {
-                                    Color.Transparent
-                                },
-                                label = "dismiss_background_color"
-                            )
-                            val contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            val labelAlpha by animateFloatAsState(
-                                targetValue = if (isSwipeActive) 1f else 0f,
-                                label = "dismiss_label_alpha"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(backgroundColor)
-                                    .padding(horizontal = spacing.lg),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.VisibilityOff,
-                                    contentDescription = "Hide & mark read",
-                                    tint = contentColor,
-                                    modifier = Modifier.alpha(labelAlpha)
-                                )
+                                    false
+                                }
                             }
-                        }
-                    ) {
-                        RedditPostItem(
-                            post = post,
-                            selectedSubreddit = selectedSubreddit,
-                            onSubredditTapped = onSubredditTapped,
-                            onPostSelected = onPostSelected,
-                            onImageClick = onImageClick,
-                            onGalleryPreview = onGalleryPreview,
-                            onYouTubeSelected = onYouTubeSelected,
-                            onSubredditSelected = onSubredditSelected,
-                            isRead = isRead,
-                            modifier = Modifier.fillMaxWidth()
                         )
+                        SwipeToDismiss(
+                            state = dismissState,
+                            modifier = Modifier.fillMaxWidth(),
+                            directions = setOf(DismissDirection.StartToEnd),
+                            dismissThresholds = { FractionalThreshold(0.35f) },
+                            background = {
+                                val isSwipeActive = dismissState.progress.fraction > 0f
+                                val backgroundColor by animateColorAsState(
+                                    targetValue = if (isSwipeActive) {
+                                        MaterialTheme.colorScheme.errorContainer
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                    label = "dismiss_background_color"
+                                )
+                                val contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                val labelAlpha by animateFloatAsState(
+                                    targetValue = if (isSwipeActive) 1f else 0f,
+                                    label = "dismiss_label_alpha"
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(backgroundColor)
+                                        .padding(horizontal = spacing.lg),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.VisibilityOff,
+                                        contentDescription = "Hide & mark read",
+                                        tint = contentColor,
+                                        modifier = Modifier.alpha(labelAlpha)
+                                    )
+                                }
+                            }
+                        ) {
+                            RedditPostItem(
+                                post = post,
+                                selectedSubreddit = selectedSubreddit,
+                                onSubredditTapped = onSubredditTapped,
+                                onPostSelected = onPostSelected,
+                                onImageClick = onImageClick,
+                                onGalleryPreview = onGalleryPreview,
+                                onYouTubeSelected = onYouTubeSelected,
+                                onSubredditSelected = onSubredditSelected,
+                                isRead = isRead,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
