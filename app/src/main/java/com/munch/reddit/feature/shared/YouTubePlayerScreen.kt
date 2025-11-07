@@ -75,3 +75,61 @@ fun YouTubePlayerRoute(navController: NavController, videoId: String) {
         }
     }
 }
+
+/**
+ * Activity-compatible version of YouTubePlayerScreen
+ */
+@Composable
+fun YouTubePlayerScreen(
+    videoId: String,
+    onBackClick: () -> Unit
+) {
+    BackHandler { onBackClick() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Black,
+                    navigationIconContentColor = Color.White
+                )
+            )
+        },
+        containerColor = Color.Black
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.Black)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    onBackClick()
+                }
+        ) {
+            YouTubePlayer(
+                videoId = videoId,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        // Consume click to prevent propagation to parent
+                    }
+            )
+        }
+    }
+}

@@ -33,16 +33,16 @@ fun SettingsRoute(
     onThemeClick: () -> Unit
 ) {
     SettingsScreen(
-        onBack = onBack,
-        onThemeClick = onThemeClick
+        onBackClick = onBack,
+        onNavigateToThemeSelection = onThemeClick
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(
-    onBack: () -> Unit,
-    onThemeClick: () -> Unit
+fun SettingsScreen(
+    onBackClick: () -> Unit,
+    onNavigateToThemeSelection: () -> Unit
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -59,7 +59,7 @@ private fun SettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -93,7 +93,7 @@ private fun SettingsScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onThemeClick,
+                onClick = onNavigateToThemeSelection,
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface

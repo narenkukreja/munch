@@ -469,3 +469,257 @@ private fun downloadImage(context: Context, imageUrl: String) {
         Toast.makeText(context, "Unable to download image", Toast.LENGTH_SHORT).show()
     }
 }
+
+/**
+ * Activity-compatible version of ImagePreviewScreen
+ */
+@Composable
+fun ImagePreviewScreen(
+    imageUrl: String,
+    imageGallery: List<String>?,
+    startIndex: Int,
+    onBackClick: () -> Unit
+) {
+    if (!imageGallery.isNullOrEmpty()) {
+        ImageGalleryPreviewActivity(imageUrls = imageGallery, startIndex = startIndex.coerceIn(0, imageGallery.lastIndex), onBackClick = onBackClick)
+        return
+    }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    val animatedScale by animateFloatAsState(targetValue = scale, label = "imageScale")
+    val density = LocalDensity.current
+    val edgeThresholdPx = remember(density) { with(density) { 48.dp.toPx() } }
+    val dragThreshold = 120f
+
+    val isGif = remember(imageUrl) { imageUrl.lowercase().contains(".gif") }
+    val imageRequest = remember(imageUrl, isGif) {
+        ImageRequest.Builder(context)
+            .data(imageUrl)
+            .crossfade(true)
+            .size(Size.ORIGINAL)
+            .apply {
+                if (isGif) {
+                    allowHardware(false)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        decoderFactory(ImageDecoderDecoder.Factory())
+                    } else {
+                        decoderFactory(GifDecoder.Factory())
+                    }
+                }
+            }
+            .build()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(scale) {
+                var totalDrag = 0f
+                var eligible = false
+                detectHorizontalDragGestures(
+                    onDragStart = { startOffset ->
+                        if (scale > 1.05f) {
+                            eligible = false
+                            totalDrag = 0f
+                            return@detectHorizontalDragGestures
+                        }
+                        eligible = startOffset.x <= edgeThresholdPx
+                        totalDrag = 0f
+                    },
+                    onDragEnd = {
+                        if (eligible && totalDrag > dragThreshold) {
+                            onBackClick()
+                        }
+                        eligible = false
+                        totalDrag = 0f
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        if (!eligible || dragAmount <= 0f) return@detectHorizontalDragGestures
+                        change.consume()
+                        totalDrag += dragAmount
+                        if (totalDrag > dragThreshold) {
+                            onBackClick()
+                            eligible = false
+                            totalDrag = 0f
+                        }
+                    }
+                )
+            }
+            .onSizeChanged { containerSize = it }
+    ) {
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = "Image preview",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = animatedScale
+                    scaleY = animatedScale
+                    translationX = offset.x
+                    translationY = offset.y
+                }
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(0.5f, 4f)
+                        if (scale > 1f) {
+                            offset = Offset(
+                                x = (offset.x + pan.x).coerceIn(-containerSize.width * 0.5f, containerSize.width * 0.5f),
+                                y = (offset.y + pan.y).coerceIn(-containerSize.height * 0.5f, containerSize.height * 0.5f)
+                            )
+                        } else {
+                            offset = Offset.Zero
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            if (scale > 1.5f) {
+                                scale = 1f
+                                offset = Offset.Zero
+                            } else {
+                                scale = 3f
+                            }
+                        }
+                    )
+                }
+        )
+    }
+}
+
+@Composable
+private fun ImageGalleryPreviewActivity(
+    imageUrls: List<String>,
+    startIndex: Int,
+    onBackClick: () -> Unit
+) {
+    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { imageUrls.size })
+    val currentPage by remember { derivedStateOf { pagerState.currentPage } }
+    val context = LocalContext.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val imageUrl = imageUrls[page]
+            var scale by remember { mutableStateOf(1f) }
+            var offset by remember { mutableStateOf(Offset.Zero) }
+            var containerSize by remember { mutableStateOf(IntSize.Zero) }
+            val density = LocalDensity.current
+            val edgeThresholdPx = remember(density) { with(density) { 48.dp.toPx() } }
+            val dragThreshold = 120f
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .pointerInput(scale) {
+                        var totalDrag = 0f
+                        var eligible = false
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { change, dragAmount ->
+                                if (!eligible) return@detectVerticalDragGestures
+                                if (dragAmount < 0f) {
+                                    totalDrag = 0f
+                                    return@detectVerticalDragGestures
+                                }
+                                if (dragAmount == 0f) return@detectVerticalDragGestures
+                                change.consume()
+                                totalDrag += dragAmount
+                                if (totalDrag > dragThreshold) {
+                                    onBackClick()
+                                    eligible = false
+                                    totalDrag = 0f
+                                }
+                            },
+                            onDragStart = {
+                                if (scale > 1.05f) {
+                                    eligible = false
+                                    totalDrag = 0f
+                                    return@detectVerticalDragGestures
+                                }
+                                eligible = true
+                                totalDrag = 0f
+                            },
+                            onDragEnd = {
+                                eligible = false
+                                totalDrag = 0f
+                            }
+                        )
+                    }
+                    .onSizeChanged { containerSize = it }
+            ) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Gallery image",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
+                        }
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                scale = (scale * zoom).coerceIn(0.5f, 4f)
+                                if (scale > 1f) {
+                                    offset = Offset(
+                                        x = (offset.x + pan.x).coerceIn(-containerSize.width * 0.5f, containerSize.width * 0.5f),
+                                        y = (offset.y + pan.y).coerceIn(-containerSize.height * 0.5f, containerSize.height * 0.5f)
+                                    )
+                                } else {
+                                    offset = Offset.Zero
+                                }
+                            }
+                        }
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    if (scale > 1.5f) {
+                                        scale = 1f
+                                        offset = Offset.Zero
+                                    } else {
+                                        scale = 3f
+                                    }
+                                }
+                            )
+                        }
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(PostBackgroundColor)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "${currentPage + 1} / ${imageUrls.size}",
+                    color = TitleColor,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+    }
+}

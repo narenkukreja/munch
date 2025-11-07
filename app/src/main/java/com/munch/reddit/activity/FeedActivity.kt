@@ -1,0 +1,137 @@
+package com.munch.reddit.activity
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.SavedStateHandle
+import com.munch.reddit.data.AppPreferences
+import com.munch.reddit.domain.model.RedditPost
+import com.munch.reddit.feature.feed.FeedTheme
+import com.munch.reddit.theme.FeedThemePreset
+import com.munch.reddit.feature.feed.RedditFeedViewModel
+import com.munch.reddit.feature.feed.RedditFeedScreen
+import com.munch.reddit.ui.theme.MunchForRedditTheme
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
+
+class FeedActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+        }
+
+        setContent {
+            val window = this@FeedActivity.window
+            val context = LocalContext.current
+            val appPreferences = remember { AppPreferences(context) }
+            var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
+            val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
+            val savedStateHandle = remember { SavedStateHandle() }
+            val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
+
+            MunchForRedditTheme {
+                val view = LocalView.current
+                val colorScheme = MaterialTheme.colorScheme
+                SideEffect {
+                    WindowInsetsControllerCompat(window, view).apply {
+                        isAppearanceLightStatusBars = false
+                        isAppearanceLightNavigationBars = false
+                    }
+                    window.statusBarColor = Color.Transparent.toArgb()
+                    window.navigationBarColor = Color.Transparent.toArgb()
+                }
+
+                FeedTheme(feedThemePreset) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        val uiState by viewModel.uiState.collectAsState()
+
+                        RedditFeedScreen(
+                            uiState = uiState,
+                            subredditOptions = viewModel.subredditOptions,
+                            sortOptions = viewModel.sortOptions,
+                            topTimeRangeOptions = viewModel.topTimeRangeOptions,
+                            onSelectSubreddit = { viewModel.selectSubreddit(it) },
+                            onSelectSort = { viewModel.selectSort(it) },
+                            onSelectTopTimeRange = { viewModel.selectTopTimeRange(it) },
+                            onPostSelected = { post ->
+                                viewModel.markPostRead(post.id)
+                                val intent = Intent(this@FeedActivity, PostDetailActivity::class.java)
+                                intent.putExtra("PERMALINK", post.permalink)
+                                startActivity(intent)
+                            },
+                            onRetry = viewModel::refresh,
+                            onTitleTapped = {},
+                            onSearchClick = {
+                                val intent = Intent(this@FeedActivity, SearchActivity::class.java)
+                                startActivity(intent)
+                            },
+                            onSettingsClick = {
+                                val intent = Intent(this@FeedActivity, SettingsActivity::class.java)
+                                startActivity(intent)
+                            },
+                            onImageClick = { imageUrl ->
+                                val intent = Intent(this@FeedActivity, ImagePreviewActivity::class.java)
+                                intent.putExtra("IMAGE_URL", imageUrl)
+                                startActivity(intent)
+                            },
+                            onGalleryPreview = { urls, index ->
+                                val intent = Intent(this@FeedActivity, ImagePreviewActivity::class.java)
+                                intent.putExtra("IMAGE_URL", urls.getOrNull(index) ?: urls.firstOrNull())
+                                intent.putStringArrayListExtra("IMAGE_GALLERY", ArrayList(urls))
+                                intent.putExtra("IMAGE_GALLERY_START_INDEX", index)
+                                startActivity(intent)
+                            },
+                            onYouTubeSelected = { videoId ->
+                                val intent = Intent(this@FeedActivity, YouTubePlayerActivity::class.java)
+                                intent.putExtra("VIDEO_ID", videoId)
+                                startActivity(intent)
+                            },
+                            onVideoFeedClick = {
+                                val intent = Intent(this@FeedActivity, VideoFeedActivity::class.java)
+                                startActivity(intent)
+                            },
+                            onLoadMore = viewModel::loadMore,
+                            isAppending = uiState.isAppending,
+                            canLoadMore = uiState.hasMore,
+                            viewModel = viewModel,
+                            onPostDismissed = { post -> viewModel.dismissPost(post.id) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh theme when returning from settings
+        val context = this
+        val appPreferences = AppPreferences(context)
+        // Theme will be updated through the state in setContent
+    }
+}

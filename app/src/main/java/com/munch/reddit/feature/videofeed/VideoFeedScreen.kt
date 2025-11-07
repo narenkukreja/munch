@@ -118,6 +118,70 @@ fun VideoFeedRoute(
     }
 }
 
+/**
+ * VideoFeedScreen for Activity-based navigation
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VideoFeedScreen(
+    viewModel: RedditFeedViewModel,
+    onBack: () -> Unit,
+    onNavigateToPostDetail: (String) -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    // Filter only video posts
+    val videoPosts = remember(uiState.posts) {
+        uiState.posts.filter { post ->
+            post.media is RedditPostMedia.Video
+        }
+    }
+    var isMuted by remember { mutableStateOf(false) }
+
+    BackHandler { onBack() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { isMuted = !isMuted }) {
+                        Icon(
+                            imageVector = if (isMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
+                            contentDescription = if (isMuted) "Unmute" else "Mute",
+                            tint = Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Black.copy(alpha = 0.3f),
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                )
+            )
+        },
+        containerColor = Color.Black
+    ) { paddingValues ->
+        VideoFeedContent(
+            videoPosts = videoPosts,
+            isMuted = isMuted,
+            onLoadMore = { viewModel.loadMore() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        )
+    }
+}
+
 @Composable
 fun VideoFeedContent(
     videoPosts: List<RedditPost>,
