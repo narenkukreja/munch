@@ -188,6 +188,24 @@ fun RedditFeedScreen(
         ScrollState(viewModel?.getSideSheetScroll() ?: 0)
     }
 
+    LaunchedEffect(uiState.selectedSubreddit, uiState.scrollPosition) {
+        val targetScroll = uiState.scrollPosition
+        if (targetScroll != null) {
+            val currentIndex = feedListState.firstVisibleItemIndex
+            val currentOffset = feedListState.firstVisibleItemScrollOffset
+            if (currentIndex != targetScroll.firstVisibleItemIndex ||
+                currentOffset != targetScroll.firstVisibleItemScrollOffset
+            ) {
+                feedListState.scrollToItem(
+                    index = targetScroll.firstVisibleItemIndex,
+                    scrollOffset = targetScroll.firstVisibleItemScrollOffset
+                )
+            }
+        } else if (feedListState.firstVisibleItemIndex != 0 || feedListState.firstVisibleItemScrollOffset != 0) {
+            feedListState.scrollToItem(0, 0)
+        }
+    }
+
     LaunchedEffect(showSubredditSheet) {
         if (showSubredditSheet) {
             viewModel?.getSideSheetScroll()?.let { saved ->
