@@ -22,62 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.navigation.NavController
-
-@Composable
-fun YouTubePlayerRoute(navController: NavController, videoId: String) {
-    BackHandler { navController.popBackStack() }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black,
-                    navigationIconContentColor = Color.White
-                )
-            )
-        },
-        containerColor = Color.Black
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.Black)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    navController.popBackStack()
-                }
-        ) {
-            YouTubePlayer(
-                videoId = videoId,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        // Consume click to prevent propagation to parent
-                    }
-            )
-        }
-    }
-}
 
 /**
- * Activity-compatible version of YouTubePlayerScreen
+ * YouTubePlayerScreen for Activity-based navigation
  */
 @Composable
 fun YouTubePlayerScreen(

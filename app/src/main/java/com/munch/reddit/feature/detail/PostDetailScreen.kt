@@ -114,7 +114,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
-import androidx.navigation.NavController
 import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.domain.model.RedditPostMedia
@@ -141,8 +140,6 @@ import com.munch.reddit.feature.shared.formatRelativeTime
 import com.munch.reddit.feature.shared.openLinkInCustomTab
 import com.munch.reddit.feature.shared.openYouTubeVideo
 import com.munch.reddit.feature.shared.parseHtmlText
-import com.munch.reddit.navigation.imagePreviewRoute
-import com.munch.reddit.navigation.navigateToFeedSubreddit
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -155,47 +152,9 @@ import org.koin.core.parameter.parametersOf
 private const val COMMENT_LOAD_MORE_THRESHOLD = 5
 private val FlairBackgroundColor = Color(0xFF5E5E5E)
 
-@Composable
-fun PostDetailRoute(
-    navController: NavController,
-    permalink: String
-) {
-    val viewModel: PostDetailViewModel = koinViewModel(parameters = { parametersOf(permalink) })
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-
-    PostDetailScreen(
-        uiState = uiState,
-        onBack = { navController.popBackStack() },
-        onRetry = viewModel::refresh,
-        onSelectSort = viewModel::selectSort,
-        onToggleComment = viewModel::toggleComment,
-        onUserLoadMoreComments = viewModel::userLoadMoreComments,
-        onAutoLoadMoreComments = viewModel::loadMoreComments,
-        onLoadRemoteReplies = viewModel::loadMoreRemoteReplies,
-        onLoadMoreReplies = viewModel::loadMoreReplies,
-        onOpenSubreddit = { subreddit -> navController.navigateToFeedSubreddit(subreddit) },
-        onOpenImage = { imageUrl -> navController.navigate(imagePreviewRoute(imageUrl)) },
-        onOpenGallery = { urls, index ->
-            runCatching {
-                // Convert to ArrayList for SavedStateHandle compatibility
-                navController.currentBackStackEntry?.savedStateHandle?.set("image_gallery", ArrayList(urls))
-                navController.currentBackStackEntry?.savedStateHandle?.set("image_gallery_start_index", index)
-            }
-            navController.navigate(imagePreviewRoute(urls.getOrNull(index) ?: urls.firstOrNull().orEmpty()))
-        },
-        onOpenYouTube = { videoId -> navController.navigate(com.munch.reddit.navigation.youtubePlayerRoute(videoId)) },
-        onOpenLink = { url -> openLinkInCustomTab(context, url) },
-        onSearchClick = { navController.navigate("search") },
-        onSettingsClick = { navController.navigate("settings") },
-        subredditOptions = SubredditCatalog.defaultSubreddits,
-        viewModel = viewModel
-    )
-}
-
 /**
- * Lightweight host for displaying PostDetailScreen outside the app NavHost (e.g., in a standalone Activity).
- * Reuses the same ViewModel and UI, but lets callers decide how to handle back navigation.
+ * PostDetailActivityContent for Activity-based navigation.
+ * Displays PostDetailScreen and handles navigation through Activities.
  */
 @Composable
 fun PostDetailActivityContent(
@@ -218,14 +177,12 @@ fun PostDetailActivityContent(
         onLoadRemoteReplies = viewModel::loadMoreRemoteReplies,
         onLoadMoreReplies = viewModel::loadMoreReplies,
         onOpenSubreddit = { subreddit ->
-            // Navigate back to FeedActivity with the selected subreddit
+            // Pass the selected subreddit back to FeedActivity via result
             activity?.let {
-                val intent = Intent(context, com.munch.reddit.activity.FeedActivity::class.java).apply {
+                val resultIntent = Intent().apply {
                     putExtra("SELECTED_SUBREDDIT", subreddit)
-                    // Clear the back stack and start fresh with the new subreddit
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
-                it.startActivity(intent)
+                it.setResult(android.app.Activity.RESULT_OK, resultIntent)
                 it.finish()
             }
         },

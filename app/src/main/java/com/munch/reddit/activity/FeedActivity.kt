@@ -1,10 +1,13 @@
 package com.munch.reddit.activity
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -82,6 +85,17 @@ class FeedActivity : ComponentActivity() {
                     ) {
                         val uiState by viewModel.uiState.collectAsState()
 
+                        // Activity result launcher for PostDetailActivity
+                        val postDetailLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.StartActivityForResult()
+                        ) { result ->
+                            if (result.resultCode == Activity.RESULT_OK) {
+                                result.data?.getStringExtra("SELECTED_SUBREDDIT")?.let { subreddit ->
+                                    viewModel.selectSubreddit(subreddit)
+                                }
+                            }
+                        }
+
                         RedditFeedScreen(
                             uiState = uiState,
                             subredditOptions = viewModel.subredditOptions,
@@ -94,7 +108,7 @@ class FeedActivity : ComponentActivity() {
                                 viewModel.markPostRead(post.id)
                                 val intent = Intent(this@FeedActivity, PostDetailActivity::class.java)
                                 intent.putExtra("PERMALINK", post.permalink)
-                                startActivity(intent)
+                                postDetailLauncher.launch(intent)
                                 overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                             },
                             onRetry = viewModel::refresh,
