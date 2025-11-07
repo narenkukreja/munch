@@ -586,6 +586,22 @@ class RedditFeedViewModel(
         private const val KEY_SIDE_SHEET_SCROLL = "reddit_feed.side_sheet_scroll"
     }
 
+    fun dismissPost(id: String) {
+        appPreferences.markPostRead(id)
+        val cacheKey = cacheKey()
+        feedCache[cacheKey]?.let { cached ->
+            feedCache[cacheKey] = cached.copy(
+                posts = cached.posts.filterNot { it.id == id }
+            )
+        }
+        _uiState.update { state ->
+            state.copy(
+                readPostIds = state.readPostIds + id,
+                posts = state.posts.filterNot { it.id == id }
+            )
+        }
+    }
+
     fun markPostRead(id: String) {
         appPreferences.markPostRead(id)
         _uiState.update { state ->

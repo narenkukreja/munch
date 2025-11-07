@@ -2,7 +2,7 @@ package com.munch.reddit.feature.feed
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -20,7 +20,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,11 +65,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FabPosition
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.FractionalThreshold
+import androidx.compose.material.SwipeToDismiss
+import androidx.compose.material.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -91,8 +97,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -101,7 +105,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.foundation.layout.offset
 import androidx.navigation.NavBackStackEntry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import android.app.Activity
@@ -270,6 +273,9 @@ fun RedditFeedRoute(
         viewModel.markPostRead(post.id)
         onPostSelected(post)
     }
+    val handlePostDismissed: (RedditPost) -> Unit = { post ->
+        viewModel.dismissPost(post.id)
+    }
 
     RedditFeedScreen(
         uiState = uiState,
@@ -285,7 +291,6 @@ fun RedditFeedRoute(
         onSearchClick = onSearchClick,
         onSettingsClick = onSettingsClick,
         listState = listState,
-        onSwipeBack = { handleBackAttempt() },
         onImageClick = onImageSelected,
         onGalleryPreview = onGalleryPreview,
         onYouTubeSelected = onYouTubeSelected,
@@ -293,7 +298,8 @@ fun RedditFeedRoute(
         onLoadMore = { viewModel.loadMore() },
         isAppending = uiState.isAppending,
         canLoadMore = uiState.hasMore,
-        viewModel = viewModel
+        viewModel = viewModel,
+        onPostDismissed = handlePostDismissed
     )
 }
 
@@ -313,7 +319,6 @@ fun RedditFeedScreen(
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     listState: LazyListState? = null,
-    onSwipeBack: () -> Unit = {},
     onImageClick: (String) -> Unit = {},
     onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit = {},
@@ -322,6 +327,7 @@ fun RedditFeedScreen(
     isAppending: Boolean = false,
     canLoadMore: Boolean = true,
     viewModel: RedditFeedViewModel? = null,
+    onPostDismissed: (RedditPost) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showSubredditSheet by remember { mutableStateOf(false) }
@@ -405,11 +411,9 @@ fun RedditFeedScreen(
                     readPostIds = uiState.readPostIds,
                     modifier = Modifier.fillMaxSize(),
                     listState = previousListState,
-                    onSwipeBack = {},
                     onImageClick = {},
                     onGalleryPreview = onGalleryPreview,
                     onYouTubeSelected = {},
-                    onOpenSideSheet = {},
                     onLoadMore = {},
                     isAppending = false,
                     canLoadMore = false,
@@ -434,20 +438,19 @@ fun RedditFeedScreen(
                         subredditOptions = subredditOptions,
                         onSubredditTapped = { showSubredditSheet = true },
                         onPostSelected = onPostSelected,
-                        readPostIds = uiState.readPostIds,
-                        modifier = Modifier.fillMaxSize(),
-                        listState = feedListState,
-                        onSwipeBack = onSwipeBack,
-                        onImageClick = onImageClick,
-                        onGalleryPreview = onGalleryPreview,
-                        onYouTubeSelected = onYouTubeSelected,
-                        onSubredditSelected = onSelectSubreddit,
-                        onOpenSideSheet = { showSubredditSheet = true },
-                        onLoadMore = onLoadMore,
-                        isAppending = isAppending,
-                        canLoadMore = canLoadMore,
-                        contentPadding = PaddingValues(vertical = spacing.lg)
-                    )
+                    readPostIds = uiState.readPostIds,
+                    modifier = Modifier.fillMaxSize(),
+                    listState = feedListState,
+                    onImageClick = onImageClick,
+                    onGalleryPreview = onGalleryPreview,
+                    onYouTubeSelected = onYouTubeSelected,
+                    onSubredditSelected = onSelectSubreddit,
+                    onLoadMore = onLoadMore,
+                    isAppending = isAppending,
+                    canLoadMore = canLoadMore,
+                    contentPadding = PaddingValues(vertical = spacing.lg),
+                    onPostDismissed = onPostDismissed
+                )
 
                     // Show loading overlay when switching subreddits
                     if (uiState.isLoading && previousSubreddit != null && previousSubreddit != uiState.selectedSubreddit) {
@@ -711,7 +714,7 @@ private fun ErrorState(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterialApi::class)
 @Composable
 private fun PostList(
     posts: List<RedditPost>,
@@ -724,24 +727,16 @@ private fun PostList(
     readPostIds: Set<String>,
     modifier: Modifier = Modifier,
     listState: LazyListState,
-    onSwipeBack: () -> Unit,
     onImageClick: (String) -> Unit,
     onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
-    onOpenSideSheet: () -> Unit,
     onLoadMore: () -> Unit,
     isAppending: Boolean,
     canLoadMore: Boolean,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    onPostDismissed: (RedditPost) -> Unit = {}
 ) {
-    val density = LocalDensity.current
-    val rightEdgeThresholdPx = remember(density) { with(density) { 48.dp.toPx() } }
-    val backDragThreshold = 120f
-    val pickerDragThreshold = 80f
-    val coroutineScope = rememberCoroutineScope()
-    val dragOffsetX = remember { Animatable(0f) }
-
     LaunchedEffect(posts, canLoadMore, isAppending) {
         if (!canLoadMore || posts.isEmpty()) return@LaunchedEffect
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
@@ -764,89 +759,6 @@ private fun PostList(
             .fillMaxSize()
             .background(SpacerBackgroundColor)
             .navigationBarsPadding()
-            .offset { androidx.compose.ui.unit.IntOffset(dragOffsetX.value.toInt(), 0) }
-            .pointerInput(Unit) {
-                var totalLeftDrag = 0f
-                var hasTriggeredLeft = false
-                var rightEligible = false
-                var isBackGesture = false
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        totalLeftDrag = 0f
-                        hasTriggeredLeft = false
-                        rightEligible = offset.x >= (size.width - rightEdgeThresholdPx)
-                        isBackGesture = false
-                    },
-                    onDragEnd = {
-                        coroutineScope.launch {
-                            if (dragOffsetX.value > backDragThreshold) {
-                                // Threshold crossed - complete the navigation
-                                dragOffsetX.animateTo(
-                                    targetValue = size.width.toFloat(),
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
-                                onSwipeBack()
-                                dragOffsetX.snapTo(0f)
-                            } else {
-                                // Didn't reach threshold - snap back
-                                dragOffsetX.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
-                            }
-                        }
-                        if (rightEligible && !hasTriggeredLeft && totalLeftDrag > pickerDragThreshold) {
-                            onOpenSideSheet()
-                        }
-                        totalLeftDrag = 0f
-                        hasTriggeredLeft = false
-                        rightEligible = false
-                        isBackGesture = false
-                    },
-                    onDragCancel = {
-                        coroutineScope.launch {
-                            dragOffsetX.animateTo(
-                                targetValue = 0f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )
-                        }
-                        totalLeftDrag = 0f
-                        hasTriggeredLeft = false
-                        rightEligible = false
-                        isBackGesture = false
-                    }
-                ) { change, dragAmount ->
-                    when {
-                        dragAmount > 0f && !rightEligible -> {
-                            // Swipe right from anywhere - interactive back gesture
-                            change.consume()
-                            isBackGesture = true
-                            coroutineScope.launch {
-                                val newOffset = (dragOffsetX.value + dragAmount).coerceAtLeast(0f)
-                                dragOffsetX.snapTo(newOffset)
-                            }
-                        }
-                        rightEligible && dragAmount < 0f -> {
-                            // Swipe left from right edge opens side sheet
-                            change.consume()
-                            totalLeftDrag += -dragAmount
-                            if (!hasTriggeredLeft && totalLeftDrag > pickerDragThreshold) {
-                                onOpenSideSheet()
-                                hasTriggeredLeft = true
-                            }
-                        }
-                    }
-                }
-            }
     ) {
         val spacing = MaterialSpacing
         LazyColumn(
@@ -867,19 +779,78 @@ private fun PostList(
                     }
                 }
             ) { post ->
-                RedditPostItem(
-                    post = post,
-                    selectedSubreddit = selectedSubreddit,
-                    onSubredditTapped = onSubredditTapped,
-                    onPostSelected = onPostSelected,
-                    onImageClick = onImageClick,
-                    onGalleryPreview = onGalleryPreview,
-                    onYouTubeSelected = onYouTubeSelected,
-                    onSubredditSelected = onSubredditSelected,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .alpha(if (readPostIds.contains(post.id)) 0.55f else 1f)
+                val dismissState = rememberDismissState(
+                    confirmStateChange = { value ->
+                        if (value == DismissValue.DismissedToEnd) {
+                            onPostDismissed(post)
+                            true
+                        } else {
+                            false
+                        }
+                    }
                 )
+                SwipeToDismiss(
+                    state = dismissState,
+                    modifier = Modifier.fillMaxWidth(),
+                    directions = setOf(DismissDirection.StartToEnd),
+                    dismissThresholds = { FractionalThreshold(0.35f) },
+                    background = {
+                        val backgroundColor by animateColorAsState(
+                            targetValue = if (dismissState.targetValue == DismissValue.DismissedToEnd) {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
+                            label = "dismiss_background_color"
+                        )
+                        val contentColor by animateColorAsState(
+                            targetValue = if (dismissState.targetValue == DismissValue.DismissedToEnd) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            label = "dismiss_content_color"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(backgroundColor)
+                                .padding(horizontal = spacing.lg),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.VisibilityOff,
+                                    contentDescription = "Hide post",
+                                    tint = contentColor
+                                )
+                                Text(
+                                    text = "Hide & mark read",
+                                    color = contentColor,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    RedditPostItem(
+                        post = post,
+                        selectedSubreddit = selectedSubreddit,
+                        onSubredditTapped = onSubredditTapped,
+                        onPostSelected = onPostSelected,
+                        onImageClick = onImageClick,
+                        onGalleryPreview = onGalleryPreview,
+                        onYouTubeSelected = onYouTubeSelected,
+                        onSubredditSelected = onSubredditSelected,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(if (readPostIds.contains(post.id)) 0.55f else 1f)
+                    )
+                }
             }
             if (isAppending) {
                 item("loading_footer") {
@@ -1198,7 +1169,6 @@ private fun RedditFeedScreenPreview() {
                 onPostSelected = {},
                 onRetry = {},
                 onTitleTapped = {},
-                onSwipeBack = {},
                 onImageClick = {}
             )
         }
@@ -1221,7 +1191,6 @@ private fun RedditFeedScreenLoadingPreview() {
                 onPostSelected = {},
                 onRetry = {},
                 onTitleTapped = {},
-                onSwipeBack = {},
                 onImageClick = {}
             )
         }
@@ -1244,7 +1213,6 @@ private fun RedditFeedScreenErrorPreview() {
                 onPostSelected = {},
                 onRetry = {},
                 onTitleTapped = {},
-                onSwipeBack = {},
                 onImageClick = {}
             )
         }
