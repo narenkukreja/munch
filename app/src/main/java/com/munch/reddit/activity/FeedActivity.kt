@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,6 +23,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.SavedStateHandle
+import com.munch.reddit.R
 import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.feature.feed.FeedTheme
@@ -42,6 +44,9 @@ class FeedActivity : ComponentActivity() {
             isAppearanceLightStatusBars = false
         }
 
+        // Get the selected subreddit from intent if provided
+        val selectedSubreddit = intent.getStringExtra("SELECTED_SUBREDDIT")
+
         setContent {
             val window = this@FeedActivity.window
             val context = LocalContext.current
@@ -50,6 +55,13 @@ class FeedActivity : ComponentActivity() {
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
             val savedStateHandle = remember { SavedStateHandle() }
             val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
+
+            // Select the subreddit if provided in intent
+            LaunchedEffect(selectedSubreddit) {
+                selectedSubreddit?.let {
+                    viewModel.selectSubreddit(it)
+                }
+            }
 
             MunchForRedditTheme {
                 val view = LocalView.current
@@ -83,6 +95,7 @@ class FeedActivity : ComponentActivity() {
                                 val intent = Intent(this@FeedActivity, PostDetailActivity::class.java)
                                 intent.putExtra("PERMALINK", post.permalink)
                                 startActivity(intent)
+                                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                             },
                             onRetry = viewModel::refresh,
                             onTitleTapped = {},
@@ -133,5 +146,11 @@ class FeedActivity : ComponentActivity() {
         val context = this
         val appPreferences = AppPreferences(context)
         // Theme will be updated through the state in setContent
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // The new intent will be handled by LaunchedEffect in setContent on recomposition
     }
 }

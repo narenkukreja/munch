@@ -64,12 +64,12 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.MunchForReddit" />
 
-        <!-- Post detail activity -->
+        <!-- Post detail activity with translucent theme for swipe-back -->
         <activity
             android:name=".activity.PostDetailActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.MunchForReddit" />
+            android:theme="@style/Theme.MunchForReddit.Translucent" />
 
         <!-- Media activities -->
         <activity

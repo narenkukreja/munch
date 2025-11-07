@@ -205,6 +205,7 @@ fun PostDetailActivityContent(
     val viewModel: PostDetailViewModel = koinViewModel(parameters = { parametersOf(permalink) })
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val activity = context as? android.app.Activity
 
     PostDetailScreen(
         uiState = uiState,
@@ -216,7 +217,18 @@ fun PostDetailActivityContent(
         onAutoLoadMoreComments = viewModel::loadMoreComments,
         onLoadRemoteReplies = viewModel::loadMoreRemoteReplies,
         onLoadMoreReplies = viewModel::loadMoreReplies,
-        onOpenSubreddit = { /* no-op */ },
+        onOpenSubreddit = { subreddit ->
+            // Navigate back to FeedActivity with the selected subreddit
+            activity?.let {
+                val intent = Intent(context, com.munch.reddit.activity.FeedActivity::class.java).apply {
+                    putExtra("SELECTED_SUBREDDIT", subreddit)
+                    // Clear the back stack and start fresh with the new subreddit
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                it.startActivity(intent)
+                it.finish()
+            }
+        },
         onOpenImage = { imageUrl -> openLinkInCustomTab(context, imageUrl) },
         onOpenGallery = { _, _ -> },
         onOpenYouTube = { videoId ->

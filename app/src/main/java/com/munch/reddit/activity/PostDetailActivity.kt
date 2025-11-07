@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -19,9 +21,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.munch.reddit.R
 import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.feature.detail.PostDetailActivityContent
 import com.munch.reddit.feature.feed.FeedTheme
+import com.munch.reddit.feature.shared.SwipeBackWrapper
 import com.munch.reddit.theme.FeedThemePreset
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 
@@ -29,10 +33,14 @@ class PostDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Configure window for translucent effect
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
         }
 
         val permalink = intent.getStringExtra("PERMALINK") ?: run {
@@ -60,14 +68,29 @@ class PostDetailActivity : ComponentActivity() {
                 }
 
                 FeedTheme(feedThemePreset) {
-                    Surface(
+                    SwipeBackWrapper(
+                        onSwipeBackFinished = {
+                            finish()
+                            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+                        },
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
+                        swipeThreshold = 0.4f,
+                        edgeWidth = 50f
                     ) {
-                        PostDetailActivityContent(
-                            permalink = permalink,
-                            onBack = { finish() }
-                        )
+                        // Add a Box with background that only covers the content area
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.background)
+                        ) {
+                            PostDetailActivityContent(
+                                permalink = permalink,
+                                onBack = {
+                                    finish()
+                                    overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+                                }
+                            )
+                        }
                     }
                 }
             }
