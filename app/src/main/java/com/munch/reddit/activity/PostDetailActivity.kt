@@ -77,11 +77,10 @@ class PostDetailActivity : ComponentActivity() {
                         swipeThreshold = 0.4f,
                         edgeWidth = 50f
                     ) {
-                        // Add a Box with background that only covers the content area
+                        // Draw only the detail content; leave root transparent to reveal feed behind
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background)
                         ) {
                             PostDetailActivityContent(
                                 permalink = permalink,
