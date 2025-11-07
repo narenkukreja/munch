@@ -33,6 +33,7 @@ data class RedditCommentDataDto(
     @SerializedName("author_flair_richtext") val authorFlairRichtext: List<FlairRichTextDto>? = null,
     @SerializedName("score") val score: Int = 0,
     @SerializedName("created_utc") val createdUtc: Long = 0L,
+    @SerializedName("stickied") val stickied: Boolean = false,
     @SerializedName("replies") val replies: JsonElement? = null,
     @SerializedName("children") val moreChildrenIds: List<String>? = null,
     @SerializedName("count") val moreCount: Int = 0,
@@ -177,6 +178,7 @@ fun RedditCommentDataDto.toDomain(
                 url = dto.url
             )
         },
+        isStickied = stickied,
         pendingRemoteReplyCount = pendingCountCollector[resolvedId] ?: 0,
         children = childComments
     )

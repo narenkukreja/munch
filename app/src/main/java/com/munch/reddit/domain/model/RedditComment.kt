@@ -17,6 +17,7 @@ data class RedditComment(
     val createdUtc: Long,
     val authorFlairText: String? = null,
     val authorFlairRichtext: List<FlairRichText>? = null,
+    val isStickied: Boolean = false,
     val pendingRemoteReplyCount: Int = 0,
     val children: List<RedditComment> = emptyList()
 )

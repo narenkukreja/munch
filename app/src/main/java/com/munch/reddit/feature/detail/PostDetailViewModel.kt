@@ -660,7 +660,10 @@ private fun List<RedditComment>.collectAutoModeratorIds(): Set<String> {
     val result = mutableSetOf<String>()
     fun traverse(comments: List<RedditComment>) {
         for (comment in comments) {
-            if ((comment.author.equals("AutoModerator", ignoreCase = true) || comment.author.equals("VisualMod", ignoreCase = true)) && comment.id.isNotBlank()) {
+            val isAutoModerator = comment.author.equals("AutoModerator", ignoreCase = true)
+            val isVisualModerator = comment.author.equals("VisualMod", ignoreCase = true)
+            val shouldCollapse = isAutoModerator || (isVisualModerator && comment.isStickied)
+            if (shouldCollapse && comment.id.isNotBlank()) {
                 result += comment.id
             }
             if (comment.children.isNotEmpty()) traverse(comment.children)
