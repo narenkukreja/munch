@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -779,64 +780,10 @@ private fun PostList(
                     }
                 }
             ) { post ->
-                val dismissState = rememberDismissState(
-                    confirmStateChange = { value ->
-                        if (value == DismissValue.DismissedToEnd) {
-                            onPostDismissed(post)
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                )
-                SwipeToDismiss(
-                    state = dismissState,
-                    modifier = Modifier.fillMaxWidth(),
-                    directions = setOf(DismissDirection.StartToEnd),
-                    dismissThresholds = { FractionalThreshold(0.35f) },
-                    background = {
-                        val backgroundColor by animateColorAsState(
-                            targetValue = if (dismissState.targetValue == DismissValue.DismissedToEnd) {
-                                MaterialTheme.colorScheme.secondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
-                            label = "dismiss_background_color"
-                        )
-                        val contentColor by animateColorAsState(
-                            targetValue = if (dismissState.targetValue == DismissValue.DismissedToEnd) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            label = "dismiss_content_color"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(backgroundColor)
-                                .padding(horizontal = spacing.lg),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.VisibilityOff,
-                                    contentDescription = "Hide post",
-                                    tint = contentColor
-                                )
-                                Text(
-                                    text = "Hide & mark read",
-                                    color = contentColor,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                ) {
+                val isRead = readPostIds.contains(post.id)
+
+                if (isRead) {
+                    // For read posts, don't use swipe to dismiss - just show the post
                     RedditPostItem(
                         post = post,
                         selectedSubreddit = selectedSubreddit,
@@ -846,10 +793,72 @@ private fun PostList(
                         onGalleryPreview = onGalleryPreview,
                         onYouTubeSelected = onYouTubeSelected,
                         onSubredditSelected = onSubredditSelected,
+                        isRead = isRead,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .alpha(if (readPostIds.contains(post.id)) 0.55f else 1f)
+                            .alpha(0.55f)
                     )
+                } else {
+                    // For unread posts, enable swipe to dismiss
+                    val dismissState = rememberDismissState(
+                        confirmStateChange = { value ->
+                            if (value == DismissValue.DismissedToEnd) {
+                                onPostDismissed(post)
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    )
+                    SwipeToDismiss(
+                        state = dismissState,
+                        modifier = Modifier.fillMaxWidth(),
+                        directions = setOf(DismissDirection.StartToEnd),
+                        dismissThresholds = { FractionalThreshold(0.35f) },
+                        background = {
+                            val isSwipeActive = dismissState.progress.fraction > 0f
+                            val backgroundColor by animateColorAsState(
+                                targetValue = if (isSwipeActive) {
+                                    MaterialTheme.colorScheme.errorContainer
+                                } else {
+                                    Color.Transparent
+                                },
+                                label = "dismiss_background_color"
+                            )
+                            val contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            val labelAlpha by animateFloatAsState(
+                                targetValue = if (isSwipeActive) 1f else 0f,
+                                label = "dismiss_label_alpha"
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(backgroundColor)
+                                    .padding(horizontal = spacing.lg),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.VisibilityOff,
+                                    contentDescription = "Hide & mark read",
+                                    tint = contentColor,
+                                    modifier = Modifier.alpha(labelAlpha)
+                                )
+                            }
+                        }
+                    ) {
+                        RedditPostItem(
+                            post = post,
+                            selectedSubreddit = selectedSubreddit,
+                            onSubredditTapped = onSubredditTapped,
+                            onPostSelected = onPostSelected,
+                            onImageClick = onImageClick,
+                            onGalleryPreview = onGalleryPreview,
+                            onYouTubeSelected = onYouTubeSelected,
+                            onSubredditSelected = onSubredditSelected,
+                            isRead = isRead,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
             if (isAppending) {
@@ -883,6 +892,7 @@ internal fun RedditPostItem(
     onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
+    isRead: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -915,7 +925,7 @@ internal fun RedditPostItem(
         modifier = modifier,
         onClick = { onPostSelected(post) },
         shape = RectangleShape,
-        color = PostBackgroundColor,
+        color = if (isRead) SpacerBackgroundColor else PostBackgroundColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
         contentColor = TitleColor

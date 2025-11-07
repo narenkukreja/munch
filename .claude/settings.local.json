@@ -18,7 +18,8 @@
       "WebFetch(domain:www.reddit.com)",
       "WebFetch(domain:joebirch.co)",
       "WebFetch(domain:streamableapp.zendesk.com)",
-      "WebFetch(domain:support.streamable.com)"
+      "WebFetch(domain:support.streamable.com)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
