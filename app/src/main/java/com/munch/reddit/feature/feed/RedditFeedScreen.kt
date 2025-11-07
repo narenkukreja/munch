@@ -46,8 +46,6 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Button
@@ -935,20 +933,8 @@ internal fun RedditPostItem(
             if (isGlobalFeed) subredditLabel else "u/${post.author}"
         }
     }
-    val errorColor = MaterialTheme.colorScheme.error
-    val formattedTitle = remember(post.id, post.isNsfw, errorColor) {
-        val baseTitle = parseHtmlText(post.title)
-        if (post.isNsfw) {
-            buildAnnotatedString {
-                append(baseTitle)
-                append(" ")
-                withStyle(style = SpanStyle(color = errorColor)) {
-                    append("NSFW")
-                }
-            }
-        } else {
-            buildAnnotatedString { append(baseTitle) }
-        }
+    val formattedTitle = remember(post.id) {
+        buildAnnotatedString { append(parseHtmlText(post.title)) }
     }
     val bottomLabel = remember(post.id, isGlobalFeed) {
         if (isGlobalFeed) subredditLabel else "u/${post.author}"
@@ -989,6 +975,26 @@ internal fun RedditPostItem(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                    }
+                    if (post.isNsfw) {
+                        val nsfwLabelColor = MaterialTheme.colorScheme.error
+                        Surface(
+                            color = nsfwLabelColor.copy(alpha = 0.18f),
+                            contentColor = nsfwLabelColor,
+                            shape = RoundedCornerShape(999.dp),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp
+                        ) {
+                            Text(
+                                text = "NSFW",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(
+                                    horizontal = spacing.sm,
+                                    vertical = spacing.xs * 0.75f
+                                )
+                            )
+                        }
                     }
                     if (post.isStickied) {
                         Surface(
