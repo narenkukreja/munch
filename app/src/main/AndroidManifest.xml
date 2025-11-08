@@ -79,6 +79,12 @@
             android:theme="@style/Theme.MunchForReddit.Translucent" />
 
         <activity
+            android:name=".activity.TableViewerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.MunchForReddit" />
+
+        <activity
             android:name=".activity.YouTubePlayerActivity"
             android:exported="false"
             android:screenOrientation="portrait"

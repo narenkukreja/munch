@@ -127,12 +127,16 @@ import org.koin.androidx.compose.koinViewModel
 import com.munch.reddit.feature.shared.FloatingToolbar
 import com.munch.reddit.feature.shared.FloatingToolbarButton
 import com.munch.reddit.feature.shared.InfoChip
+import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.feature.shared.RedditPostMediaContent
 import com.munch.reddit.feature.shared.SubredditSideSheet
 import com.munch.reddit.feature.shared.formatCount
 import com.munch.reddit.feature.shared.formatRelativeTime
+import com.munch.reddit.feature.shared.TableAttachmentList
 import com.munch.reddit.feature.shared.LinkifiedText
 import com.munch.reddit.feature.shared.parseHtmlText
+import com.munch.reddit.feature.shared.parseTablesFromHtml
+import com.munch.reddit.feature.shared.stripTablesFromHtml
 import com.munch.reddit.feature.shared.openLinkInCustomTab
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
@@ -829,8 +833,9 @@ internal fun RedditPostItem(
             if (isGlobalFeed) subredditLabel else "u/${post.author}"
         }
     }
-    val formattedTitle = remember(post.id) {
-        buildAnnotatedString { append(parseHtmlText(post.title)) }
+    val plainTitle = remember(post.id) { parseHtmlText(post.title) }
+    val formattedTitle = remember(plainTitle) {
+        buildAnnotatedString { append(plainTitle) }
     }
     val bottomLabel = remember(post.id, isGlobalFeed) {
         if (isGlobalFeed) subredditLabel else "u/${post.author}"
@@ -914,23 +919,59 @@ internal fun RedditPostItem(
                 }
             }
 
-            if (post.selfText.isNotBlank() && post.media is RedditPostMedia.None) {
-                LinkifiedText(
-                    text = post.selfText,
-                    htmlText = post.selfTextHtml,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TitleColor.copy(alpha = 0.9f),
-                    linkColor = SubredditColor,
-                    quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 6,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.lg, vertical = spacing.sm),
-                    onLinkClick = { url -> openLinkInCustomTab(context, url) },
-                    onImageClick = onImageClick,
-                    onTextClick = { onPostSelected(post) }
-                )
+            if (post.media is RedditPostMedia.None) {
+                val parsedTables = remember(post.id, post.selfTextHtml) {
+                    parseTablesFromHtml(post.selfTextHtml)
+                }
+                val sanitizedHtml = remember(post.id, post.selfTextHtml, parsedTables.size) {
+                    if (parsedTables.isNotEmpty()) {
+                        stripTablesFromHtml(post.selfTextHtml)
+                    } else {
+                        post.selfTextHtml
+                    }
+                }
+                val bodyText = remember(post.id, sanitizedHtml, post.selfText) {
+                    sanitizedHtml?.let { parseHtmlText(it).trim() } ?: post.selfText
+                }
+                val hasBodyText = bodyText.isNotBlank()
+                if (hasBodyText) {
+                    LinkifiedText(
+                        text = bodyText,
+                        htmlText = sanitizedHtml,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TitleColor.copy(alpha = 0.9f),
+                        linkColor = SubredditColor,
+                        quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 6,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.lg, vertical = spacing.sm),
+                        onLinkClick = { url -> openLinkInCustomTab(context, url) },
+                        onImageClick = onImageClick,
+                        onTextClick = { onPostSelected(post) }
+                    )
+                }
+                if (parsedTables.isNotEmpty()) {
+                    TableAttachmentList(
+                        tables = parsedTables,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = spacing.lg,
+                                vertical = if (hasBodyText) spacing.xs else spacing.sm
+                            ),
+                        onViewTable = { tableIndex ->
+                            val intent = TableViewerActivity.createIntent(
+                                context = context,
+                                postTitle = plainTitle,
+                                tables = parsedTables,
+                                startIndex = tableIndex
+                            )
+                            context.startActivity(intent)
+                        }
+                    )
+                }
             }
 
             RedditPostMediaContent(
