@@ -136,6 +136,7 @@ import com.munch.reddit.feature.shared.parseHtmlText
 import com.munch.reddit.feature.shared.openLinkInCustomTab
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
+import com.munch.reddit.theme.PostCardStyle
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.delay
@@ -153,6 +154,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 @Composable
 fun RedditFeedScreen(
     uiState: RedditFeedViewModel.RedditFeedUiState,
+    postCardStyle: PostCardStyle,
     subredditOptions: List<String>,
     sortOptions: List<RedditFeedViewModel.FeedSortOption>,
     topTimeRangeOptions: List<RedditFeedViewModel.TopTimeRange>,
@@ -691,22 +693,23 @@ private fun PostList(
                     )
                 ) {
                     if (isRead) {
-                    // For read posts, don't use swipe to dismiss - just show the post
-                    RedditPostItem(
-                        post = post,
-                        selectedSubreddit = selectedSubreddit,
-                        onSubredditTapped = onSubredditTapped,
-                        onPostSelected = onPostSelected,
-                        onImageClick = onImageClick,
-                        onGalleryPreview = onGalleryPreview,
-                        onYouTubeSelected = onYouTubeSelected,
-                        onSubredditSelected = onSubredditSelected,
-                        isRead = isRead,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .alpha(0.55f)
-                    )
-                } else {
+                        // For read posts, don't use swipe to dismiss - just show the post
+                        RedditPostItem(
+                            post = post,
+                            selectedSubreddit = selectedSubreddit,
+                            onSubredditTapped = onSubredditTapped,
+                            onPostSelected = onPostSelected,
+                            onImageClick = onImageClick,
+                            onGalleryPreview = onGalleryPreview,
+                            onYouTubeSelected = onYouTubeSelected,
+                            onSubredditSelected = onSubredditSelected,
+                            isRead = isRead,
+                            postCardStyle = postCardStyle,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .alpha(0.55f)
+                        )
+                    } else {
                         // For unread posts, enable swipe to dismiss
                         val dismissState = rememberDismissState(
                             confirmStateChange = { value ->
@@ -770,11 +773,12 @@ private fun PostList(
                                 onYouTubeSelected = onYouTubeSelected,
                                 onSubredditSelected = onSubredditSelected,
                                 isRead = isRead,
+                                postCardStyle = postCardStyle,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                        }
                     }
                 }
+            }
             }
             if (isAppending) {
                 item("loading_footer") {
@@ -808,12 +812,12 @@ internal fun RedditPostItem(
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
     isRead: Boolean = false,
+    postCardStyle: PostCardStyle = PostCardStyle.CardV1,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val spacing = MaterialSpacing
 
-    // Use derivedStateOf to avoid recomputation on every recomposition
     val subredditLabel = remember(post.id) {
         val raw = post.subreddit.removePrefix("r/").removePrefix("R/")
         "r/${raw.lowercase()}"
@@ -835,6 +839,89 @@ internal fun RedditPostItem(
     val bottomLabel = remember(post.id, isGlobalFeed) {
         if (isGlobalFeed) subredditLabel else "u/${post.author}"
     }
+    val authorLabel = remember(post.id) {
+        post.author.removePrefix("u/").removePrefix("U/")
+    }
+    val hasSelfTextContent = remember(post.id, post.selfText, post.media) {
+        post.selfText.isNotBlank() && post.media is RedditPostMedia.None
+    }
+    val hasMediaContent = remember(post.id, post.media) {
+        post.media !is RedditPostMedia.None
+    }
+    val hasPrimaryContent = hasSelfTextContent || hasMediaContent
+    val commentsLabel = remember(post.id, post.commentCount) { formatCount(post.commentCount) }
+    val votesLabel = remember(post.id, post.score) { formatCount(post.score) }
+
+    @Composable
+    fun StatusBadge(label: String, color: Color) {
+        Surface(
+            color = color.copy(alpha = 0.18f),
+            contentColor = color,
+            shape = RoundedCornerShape(999.dp),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(
+                    horizontal = spacing.sm,
+                    vertical = spacing.xs * 0.75f
+                )
+            )
+        }
+    }
+
+    @Composable
+    fun SelfTextSection() {
+        LinkifiedText(
+            text = post.selfText,
+            htmlText = post.selfTextHtml,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TitleColor.copy(alpha = 0.9f),
+            linkColor = SubredditColor,
+            quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            maxLines = 6,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.lg, vertical = spacing.sm),
+            onLinkClick = { url -> openLinkInCustomTab(context, url) },
+            onImageClick = onImageClick,
+            onTextClick = { onPostSelected(post) }
+        )
+    }
+
+    @Composable
+    fun MediaSection() {
+        RedditPostMediaContent(
+            media = post.media,
+            modifier = Modifier.fillMaxWidth(),
+            onLinkClick = { url -> openLinkInCustomTab(context, url) },
+            onImageClick = { url -> onImageClick(url) },
+            onGalleryClick = onGalleryPreview,
+            onYoutubeClick = { videoId, _ ->
+                val youtube = post.media as? RedditPostMedia.YouTube
+                val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
+                if (id.isNotBlank()) onYouTubeSelected(id)
+            }
+        )
+    }
+
+    fun Modifier.subredditClickable(): Modifier {
+        return then(
+            if (isGlobalFeed) {
+                Modifier.clickable {
+                    onSubredditTapped()
+                    val subredditName = post.subreddit.removePrefix("r/").removePrefix("R/")
+                    onSubredditSelected(subredditName)
+                }
+            } else {
+                Modifier
+            }
+        )
+    }
 
     Surface(
         modifier = modifier,
@@ -848,153 +935,199 @@ internal fun RedditPostItem(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.lg, vertical = spacing.md),
-                verticalArrangement = Arrangement.spacedBy(spacing.sm)
-            ) {
-                Text(
-                    text = formattedTitle,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = TitleColor
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-                ) {
-                    if (post.media !is RedditPostMedia.Link) {
+            when (postCardStyle) {
+                PostCardStyle.CardV1 -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.lg, vertical = spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm)
+                    ) {
                         Text(
-                            text = domainLabel,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = formattedTitle,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = TitleColor
                         )
-                    }
-                    if (post.isNsfw) {
-                        val nsfwLabelColor = MaterialTheme.colorScheme.error
-                        Surface(
-                            color = nsfwLabelColor.copy(alpha = 0.18f),
-                            contentColor = nsfwLabelColor,
-                            shape = RoundedCornerShape(999.dp),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
                         ) {
-                            Text(
-                                text = "NSFW",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(
-                                    horizontal = spacing.sm,
-                                    vertical = spacing.xs * 0.75f
+                            if (post.media !is RedditPostMedia.Link) {
+                                Text(
+                                    text = domainLabel,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                            )
-                        }
-                    }
-                    if (post.isStickied) {
-                        Surface(
-                            color = PinnedLabelColor.copy(alpha = 0.18f),
-                            contentColor = PinnedLabelColor,
-                            shape = RoundedCornerShape(999.dp),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp
-                        ) {
-                            Text(
-                                text = "PINNED",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(
-                                    horizontal = spacing.sm,
-                                    vertical = spacing.xs * 0.75f
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (post.selfText.isNotBlank() && post.media is RedditPostMedia.None) {
-                LinkifiedText(
-                    text = post.selfText,
-                    htmlText = post.selfTextHtml,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TitleColor.copy(alpha = 0.9f),
-                    linkColor = SubredditColor,
-                    quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 6,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.lg, vertical = spacing.sm),
-                    onLinkClick = { url -> openLinkInCustomTab(context, url) },
-                    onImageClick = onImageClick,
-                    onTextClick = { onPostSelected(post) }
-                )
-            }
-
-            RedditPostMediaContent(
-                media = post.media,
-                modifier = Modifier.fillMaxWidth(),
-                onLinkClick = { url -> openLinkInCustomTab(context, url) },
-                onImageClick = { url -> onImageClick(url) },
-                onGalleryClick = onGalleryPreview,
-                onYoutubeClick = { videoId, url ->
-                    val youtube = post.media as? RedditPostMedia.YouTube
-                    val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
-                    if (id.isNotBlank()) onYouTubeSelected(id)
-                }
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.lg, vertical = spacing.md),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val labelModifier = Modifier.weight(1f)
-                Row(
-                    modifier = labelModifier
-                        .then(
-                            if (isGlobalFeed) {
-                                Modifier.clickable {
-                                    // Extract subreddit name without r/ prefix
-                                    val subredditName = post.subreddit.removePrefix("r/").removePrefix("R/")
-                                    onSubredditSelected(subredditName)
-                                }
-                            } else {
-                                Modifier
                             }
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
-                ) {
-                    if (bottomLabel.isNotBlank()) {
-                        Text(
-                            text = bottomLabel,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = SubredditColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                            if (post.isNsfw) {
+                                StatusBadge(
+                                    label = "NSFW",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            if (post.isStickied) {
+                                StatusBadge(
+                                    label = "PINNED",
+                                    color = PinnedLabelColor
+                                )
+                            }
+                        }
+                    }
+
+                    if (hasSelfTextContent) {
+                        SelfTextSection()
+                    }
+
+                    MediaSection()
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.lg, vertical = spacing.md),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .subredditClickable(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                        ) {
+                            if (bottomLabel.isNotBlank()) {
+                                Text(
+                                    text = bottomLabel,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = SubredditColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                        ) {
+                            InfoChip(
+                                icon = Icons.Filled.AccessTime,
+                                label = formatRelativeTime(post.createdUtc)
+                            )
+                            InfoChip(
+                                icon = Icons.Filled.ChatBubble,
+                                label = commentsLabel
+                            )
+                            InfoChip(
+                                icon = Icons.Filled.ArrowUpward,
+                                label = votesLabel
+                            )
+                        }
                     }
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md)
-                ) {
-                    InfoChip(
-                        icon = Icons.Filled.AccessTime,
-                        label = formatRelativeTime(post.createdUtc)
-                    )
-                    InfoChip(
-                        icon = Icons.Filled.ChatBubble,
-                        label = formatCount(post.commentCount)
-                    )
-                    InfoChip(
-                        icon = Icons.Filled.ArrowUpward,
-                        label = formatCount(post.score)
-                    )
+
+                PostCardStyle.CardV2 -> {
+                    if (hasSelfTextContent) {
+                        SelfTextSection()
+                    }
+
+                    MediaSection()
+
+                    if (hasPrimaryContent) {
+                        Spacer(modifier = Modifier.height(spacing.md))
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.lg, vertical = spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm)
+                    ) {
+                        Text(
+                            text = formattedTitle,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = TitleColor
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .subredditClickable(),
+                            verticalArrangement = Arrangement.spacedBy(spacing.xs)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                            ) {
+                                if (authorLabel.isNotBlank()) {
+                                    Text(
+                                        text = authorLabel,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Text(
+                                    text = "in",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = subredditLabel,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = SubredditColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (domainLabel.isNotBlank()) {
+                                    Text(
+                                        text = "•",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = domainLabel,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            if (post.isNsfw || post.isStickied) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                                ) {
+                                    if (post.isNsfw) {
+                                        StatusBadge(
+                                            label = "NSFW",
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    if (post.isStickied) {
+                                        StatusBadge(
+                                            label = "PINNED",
+                                            color = PinnedLabelColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(spacing.xs)
+                        ) {
+                            Text(
+                                text = "$commentsLabel comments",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$votesLabel votes",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1069,6 +1202,26 @@ private fun RedditPostItemPreview() {
                 onPostSelected = {},
                 onImageClick = {},
                 onYouTubeSelected = {},
+                postCardStyle = PostCardStyle.CardV1,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun RedditPostItemCardV2Preview() {
+    MunchForRedditTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            RedditPostItem(
+                post = sampleImagePost,
+                selectedSubreddit = "all",
+                onSubredditTapped = {},
+                onPostSelected = {},
+                onImageClick = {},
+                onYouTubeSelected = {},
+                postCardStyle = PostCardStyle.CardV2,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -1085,6 +1238,7 @@ private fun RedditFeedScreenPreview() {
                     posts = listOf(sampleImagePost, sampleTextPost, sampleVideoPost),
                     selectedSubreddit = "all"
                 ),
+                postCardStyle = PostCardStyle.CardV1,
                 subredditOptions = listOf("all", "android", "apple"),
                 sortOptions = RedditFeedViewModel.FeedSortOption.values().toList(),
                 topTimeRangeOptions = RedditFeedViewModel.TopTimeRange.values().toList(),
@@ -1107,6 +1261,7 @@ private fun RedditFeedScreenLoadingPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             RedditFeedScreen(
                 uiState = RedditFeedViewModel.RedditFeedUiState(isLoading = true, selectedSubreddit = "android"),
+                postCardStyle = PostCardStyle.CardV1,
                 subredditOptions = listOf("all", "android"),
                 sortOptions = RedditFeedViewModel.FeedSortOption.values().toList(),
                 topTimeRangeOptions = RedditFeedViewModel.TopTimeRange.values().toList(),
@@ -1129,6 +1284,7 @@ private fun RedditFeedScreenErrorPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             RedditFeedScreen(
                 uiState = RedditFeedViewModel.RedditFeedUiState(errorMessage = "Network error", selectedSubreddit = "apple"),
+                postCardStyle = PostCardStyle.CardV1,
                 subredditOptions = listOf("all", "apple"),
                 sortOptions = RedditFeedViewModel.FeedSortOption.values().toList(),
                 topTimeRangeOptions = RedditFeedViewModel.TopTimeRange.values().toList(),

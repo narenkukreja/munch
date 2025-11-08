@@ -58,6 +58,7 @@ import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.theme.FeedThemePreset
+import com.munch.reddit.theme.PostCardStyle
 import com.munch.reddit.feature.shared.LinkifiedText
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -66,18 +67,25 @@ import androidx.compose.material.icons.filled.ArrowUpward
 @Composable
 fun SelectThemeScreen(
     initialThemeId: String,
-    onThemeSelected: (String) -> Unit,
+    initialPostCardStyleId: String,
+    onSelectionSaved: (String, String) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
     // Match feed/detail backgrounds so previews look accurate
     val backgroundColor = SpacerBackgroundColor
     var selectedThemeId by rememberSaveable { mutableStateOf(initialThemeId.lowercase()) }
+    var selectedPostCardStyleId by rememberSaveable { mutableStateOf(initialPostCardStyleId.lowercase()) }
 
     LaunchedEffect(initialThemeId) {
         selectedThemeId = initialThemeId.lowercase()
     }
 
+    LaunchedEffect(initialPostCardStyleId) {
+        selectedPostCardStyleId = initialPostCardStyleId.lowercase()
+    }
+
     val selectedPreset = FeedThemePreset.fromId(selectedThemeId)
+    val selectedPostCardStyle = PostCardStyle.fromId(selectedPostCardStyleId)
 
     Scaffold(
         containerColor = backgroundColor,
@@ -120,7 +128,7 @@ fun SelectThemeScreen(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        OnboardingPostPreview()
+                        OnboardingPostPreview(postCardStyle = selectedPostCardStyle)
                         Text(
                             text = "Comment",
                             fontSize = 18.sp,
@@ -152,10 +160,40 @@ fun SelectThemeScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Post design",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth(),
+                color = TitleColor
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ThemeOptionButton(
+                    label = PostCardStyle.CardV1.displayName,
+                    isSelected = selectedPostCardStyleId == PostCardStyle.CardV1.id,
+                    modifier = Modifier.weight(1f),
+                    onClick = { selectedPostCardStyleId = PostCardStyle.CardV1.id }
+                )
+                ThemeOptionButton(
+                    label = PostCardStyle.CardV2.displayName,
+                    isSelected = selectedPostCardStyleId == PostCardStyle.CardV2.id,
+                    modifier = Modifier.weight(1f),
+                    onClick = { selectedPostCardStyleId = PostCardStyle.CardV2.id }
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { onThemeSelected(selectedThemeId) },
+                onClick = { onSelectionSaved(selectedThemeId, selectedPostCardStyleId) },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -221,7 +259,7 @@ private val onboardingSamplePost = RedditPost(
 )
 
 @Composable
-private fun OnboardingPostPreview() {
+private fun OnboardingPostPreview(postCardStyle: PostCardStyle) {
     com.munch.reddit.feature.feed.RedditPostItem(
         post = onboardingSamplePost,
         selectedSubreddit = "all",
@@ -229,7 +267,8 @@ private fun OnboardingPostPreview() {
         onPostSelected = {},
         onImageClick = {},
         onYouTubeSelected = {},
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        postCardStyle = postCardStyle
     )
 }
 
@@ -312,7 +351,8 @@ private fun SelectThemeScreenPreview() {
     MunchForRedditTheme {
         SelectThemeScreen(
             initialThemeId = FeedThemePreset.Narwhal.id,
-            onThemeSelected = {}
+            initialPostCardStyleId = PostCardStyle.CardV1.id,
+            onSelectionSaved = { _, _ -> }
         )
     }
 }

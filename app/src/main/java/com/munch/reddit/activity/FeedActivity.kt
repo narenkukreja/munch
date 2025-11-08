@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -26,11 +27,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.munch.reddit.R
 import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.feature.feed.FeedTheme
 import com.munch.reddit.theme.FeedThemePreset
+import com.munch.reddit.theme.PostCardStyle
 import com.munch.reddit.feature.feed.RedditFeedViewModel
 import com.munch.reddit.feature.feed.RedditFeedScreen
 import com.munch.reddit.ui.theme.MunchForRedditTheme
@@ -55,9 +59,31 @@ class FeedActivity : ComponentActivity() {
             val context = LocalContext.current
             val appPreferences = remember { AppPreferences(context) }
             var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
+            var postCardStyleId by remember { mutableStateOf(appPreferences.selectedPostCardStyle) }
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
+            val postCardStyle = remember(postCardStyleId) { PostCardStyle.fromId(postCardStyleId) }
             val savedStateHandle = remember { SavedStateHandle() }
             val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+            DisposableEffect(lifecycleOwner, appPreferences) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        val updatedThemeId = appPreferences.selectedTheme
+                        if (updatedThemeId != feedThemeId) {
+                            feedThemeId = updatedThemeId
+                        }
+                        val updatedPostCardStyle = appPreferences.selectedPostCardStyle
+                        if (updatedPostCardStyle != postCardStyleId) {
+                            postCardStyleId = updatedPostCardStyle
+                        }
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
 
             // Select the subreddit if provided in intent
             LaunchedEffect(selectedSubreddit) {
@@ -98,6 +124,7 @@ class FeedActivity : ComponentActivity() {
 
                         RedditFeedScreen(
                             uiState = uiState,
+                            postCardStyle = postCardStyle,
                             subredditOptions = viewModel.subredditOptions,
                             sortOptions = viewModel.sortOptions,
                             topTimeRangeOptions = viewModel.topTimeRangeOptions,
