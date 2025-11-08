@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,16 +21,21 @@ import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.feature.feed.FeedTheme
 import com.munch.reddit.theme.FeedThemePreset
 import com.munch.reddit.feature.shared.ImagePreviewScreen
+import com.munch.reddit.feature.shared.SwipeBackWrapper
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 
 class ImagePreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Configure window for translucent effect and edge-to-edge
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
         }
 
         val imageUrl = intent.getStringExtra("IMAGE_URL") ?: run {
@@ -62,15 +66,25 @@ class ImagePreviewActivity : ComponentActivity() {
                 }
 
                 FeedTheme(feedThemePreset) {
-                    Surface(
+                    SwipeBackWrapper(
+                        onSwipeBackFinished = {
+                            finish()
+                            overridePendingTransition(com.munch.reddit.R.anim.slide_in_left, com.munch.reddit.R.anim.slide_out_right)
+                        },
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
+                        swipeThreshold = 0.4f,
+                        edgeWidth = 50f
                     ) {
+                        // Do not draw an opaque background at the root; allow reveal of the detail screen beneath
                         ImagePreviewScreen(
                             imageUrl = imageUrl,
                             imageGallery = imageGallery,
                             startIndex = startIndex,
-                            onBackClick = { finish() }
+                            onBackClick = {
+                                finish()
+                                overridePendingTransition(com.munch.reddit.R.anim.slide_in_left, com.munch.reddit.R.anim.slide_out_right)
+                            },
+                            enableEdgeSwipeBack = false // Let the wrapper handle horizontal swipe + reveal
                         )
                     }
                 }

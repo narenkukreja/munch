@@ -138,6 +138,7 @@ import com.munch.reddit.feature.shared.RedditPostMediaContent
 import com.munch.reddit.feature.shared.SubredditSideSheet
 import com.munch.reddit.feature.shared.formatCount
 import com.munch.reddit.feature.shared.formatRelativeTime
+import com.munch.reddit.feature.shared.isImageUrl
 import com.munch.reddit.feature.shared.openLinkInCustomTab
 import com.munch.reddit.feature.shared.openYouTubeVideo
 import com.munch.reddit.feature.shared.parseHtmlText
@@ -178,17 +179,37 @@ fun PostDetailActivityContent(
         onLoadRemoteReplies = viewModel::loadMoreRemoteReplies,
         onLoadMoreReplies = viewModel::loadMoreReplies,
         onOpenSubreddit = { subreddit ->
-            // Pass the selected subreddit back to FeedActivity via result
+            // Navigate back to FeedActivity with the selected subreddit
             activity?.let {
-                val resultIntent = Intent().apply {
+                val intent = Intent(context, com.munch.reddit.activity.FeedActivity::class.java).apply {
                     putExtra("SELECTED_SUBREDDIT", subreddit)
+                    // Clear the back stack and start fresh with the new subreddit
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
-                it.setResult(android.app.Activity.RESULT_OK, resultIntent)
+                it.startActivity(intent)
                 it.finish()
             }
         },
-        onOpenImage = { imageUrl -> openLinkInCustomTab(context, imageUrl) },
-        onOpenGallery = { _, _ -> },
+        onOpenImage = { imageUrl ->
+            // Open image links in the in-app ImagePreviewActivity instead of a custom tab
+            activity?.let {
+                val intent = Intent(context, com.munch.reddit.activity.ImagePreviewActivity::class.java).apply {
+                    putExtra("IMAGE_URL", imageUrl)
+                }
+                it.startActivity(intent)
+            }
+        },
+        onOpenGallery = { urls, index ->
+            // Support gallery preview in the same activity
+            activity?.let {
+                val intent = Intent(context, com.munch.reddit.activity.ImagePreviewActivity::class.java).apply {
+                    putExtra("IMAGE_URL", urls.getOrNull(index) ?: urls.firstOrNull())
+                    putStringArrayListExtra("IMAGE_GALLERY", ArrayList(urls))
+                    putExtra("IMAGE_GALLERY_START_INDEX", index)
+                }
+                it.startActivity(intent)
+            }
+        },
         onOpenYouTube = { videoId ->
             // Fallback for standalone activity: open in browser/app
             openYouTubeVideo(context, videoId, "https://www.youtube.com/watch?v=$videoId")

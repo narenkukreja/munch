@@ -108,7 +108,8 @@ fun ImagePreviewScreen(
     imageUrl: String,
     imageGallery: List<String>?,
     startIndex: Int,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    enableEdgeSwipeBack: Boolean = true
 ) {
     if (!imageGallery.isNullOrEmpty()) {
         ImageGalleryPreviewActivity(imageUrls = imageGallery, startIndex = startIndex.coerceIn(0, imageGallery.lastIndex), onBackClick = onBackClick)
@@ -148,37 +149,41 @@ fun ImagePreviewScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(scale) {
-                var totalDrag = 0f
-                var eligible = false
-                detectHorizontalDragGestures(
-                    onDragStart = { startOffset ->
-                        if (scale > 1.05f) {
-                            eligible = false
-                            totalDrag = 0f
-                            return@detectHorizontalDragGestures
-                        }
-                        eligible = startOffset.x <= edgeThresholdPx
-                        totalDrag = 0f
-                    },
-                    onDragEnd = {
-                        if (eligible && totalDrag > dragThreshold) {
-                            onBackClick()
-                        }
-                        eligible = false
-                        totalDrag = 0f
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        if (!eligible || dragAmount <= 0f) return@detectHorizontalDragGestures
-                        change.consume()
-                        totalDrag += dragAmount
-                        if (totalDrag > dragThreshold) {
-                            onBackClick()
-                            eligible = false
-                            totalDrag = 0f
-                        }
+            .let { base ->
+                if (enableEdgeSwipeBack) {
+                    base.pointerInput(scale) {
+                        var totalDrag = 0f
+                        var eligible = false
+                        detectHorizontalDragGestures(
+                            onDragStart = { startOffset ->
+                                if (scale > 1.05f) {
+                                    eligible = false
+                                    totalDrag = 0f
+                                    return@detectHorizontalDragGestures
+                                }
+                                eligible = startOffset.x <= edgeThresholdPx
+                                totalDrag = 0f
+                            },
+                            onDragEnd = {
+                                if (eligible && totalDrag > dragThreshold) {
+                                    onBackClick()
+                                }
+                                eligible = false
+                                totalDrag = 0f
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                if (!eligible || dragAmount <= 0f) return@detectHorizontalDragGestures
+                                change.consume()
+                                totalDrag += dragAmount
+                                if (totalDrag > dragThreshold) {
+                                    onBackClick()
+                                    eligible = false
+                                    totalDrag = 0f
+                                }
+                            }
+                        )
                     }
-                )
+                } else base
             }
             .onSizeChanged { containerSize = it }
     ) {

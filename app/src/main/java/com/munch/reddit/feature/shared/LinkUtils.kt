@@ -57,3 +57,17 @@ fun openYouTubeVideo(context: Context, videoId: String, watchUrl: String) {
     runCatching { context.startActivity(appIntent) }
         .onFailure { runCatching { context.startActivity(webIntent) } }
 }
+
+fun isImageUrl(url: String): Boolean {
+    val lowerUrl = url.lowercase()
+    return lowerUrl.endsWith(".jpg") ||
+           lowerUrl.endsWith(".jpeg") ||
+           lowerUrl.endsWith(".png") ||
+           lowerUrl.endsWith(".gif") ||
+           lowerUrl.endsWith(".webp") ||
+           lowerUrl.contains(".jpg?") ||
+           lowerUrl.contains(".jpeg?") ||
+           lowerUrl.contains(".png?") ||
+           lowerUrl.contains(".gif?") ||
+           lowerUrl.contains(".webp?")
+}

@@ -76,7 +76,7 @@
             android:name=".activity.ImagePreviewActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.MunchForReddit" />
+            android:theme="@style/Theme.MunchForReddit.Translucent" />
 
         <activity
             android:name=".activity.YouTubePlayerActivity"
