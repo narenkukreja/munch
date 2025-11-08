@@ -328,14 +328,6 @@ fun RedditPostLink(
     }
     val baseModifier = modifier
         .fillMaxWidth()
-        .clip(
-            RoundedCornerShape(
-                topStart = 0.dp,
-                topEnd = 0.dp,
-                bottomEnd = 12.dp,
-                bottomStart = 12.dp
-            )
-        )
     val handler = onLinkClick
     val clickableModifier = if (handler != null) {
         baseModifier.clickable(
@@ -347,7 +339,6 @@ fun RedditPostLink(
 
     Column(
         modifier = clickableModifier
-            .background(PostBackgroundColor)
     ) {
         if (media.previewImageUrl != null) {
             val defaultAspectRatio = media.previewWidth?.let { width ->
@@ -386,42 +377,58 @@ fun RedditPostLink(
                     }
                 }
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(PostBackgroundColor.copy(alpha = 0.6f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = displayDomain.ifBlank { "External link" },
-                    color = TitleColor.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
         }
 
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 0.dp,
+                        topEnd = 0.dp,
+                        bottomEnd = 12.dp,
+                        bottomStart = 12.dp
+                    )
+                )
+                .background(PostBackgroundColor)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = displayDomain.ifBlank { media.url },
-                    color = TitleColor,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            if (media.previewImageUrl == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .background(PostBackgroundColor.copy(alpha = 0.6f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = displayDomain.ifBlank { "External link" },
+                        color = TitleColor.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = displayDomain.ifBlank { media.url },
+                        color = TitleColor,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(
+                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_globe),
+                    contentDescription = null,
+                    tint = SubredditColor
                 )
             }
-            Icon(
-                imageVector = ImageVector.vectorResource(id = R.drawable.ic_globe),
-                contentDescription = null,
-                tint = SubredditColor
-            )
         }
     }
 }
