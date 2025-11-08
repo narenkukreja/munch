@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,8 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,10 +51,16 @@ import com.munch.reddit.domain.model.RedditPostMedia
 import com.munch.reddit.feature.feed.FeedTheme
 import com.munch.reddit.feature.feed.MetaInfoColor
 import com.munch.reddit.feature.feed.PostBackgroundColor
+import com.munch.reddit.feature.feed.SpacerBackgroundColor
+import com.munch.reddit.feature.feed.CommentTextColor
 import com.munch.reddit.feature.feed.SubredditColor
 import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
+import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.theme.FeedThemePreset
+import com.munch.reddit.feature.shared.LinkifiedText
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ArrowUpward
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +69,8 @@ fun SelectThemeScreen(
     onThemeSelected: (String) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    val backgroundColor = if (onBack != null) PostBackgroundColor else MaterialTheme.colorScheme.background
+    // Match feed/detail backgrounds so previews look accurate
+    val backgroundColor = SpacerBackgroundColor
     var selectedThemeId by rememberSaveable { mutableStateOf(initialThemeId.lowercase()) }
 
     LaunchedEffect(initialThemeId) {
@@ -100,13 +110,24 @@ fun SelectThemeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Transparent container so no extra surface color shows behind previews
                 Surface(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Transparent,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         OnboardingPostPreview()
+                        Text(
+                            text = "Comment",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TitleColor
+                        )
+                        OnboardingCommentPreview()
                     }
                 }
             }
@@ -210,6 +231,79 @@ private fun OnboardingPostPreview() {
         onYouTubeSelected = {},
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+@Composable
+private fun OnboardingCommentPreview() {
+    val spacing = MaterialSpacing
+    // Match the real CommentItem layout (depth = 0)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = spacing.sm * 0.5f),
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                    ) {
+                        Text(
+                            text = "jane_doe",
+                            color = SubredditColor,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                    ) {
+                        Icon(
+                            Icons.Filled.AccessTime,
+                            contentDescription = null,
+                            tint = MetaInfoColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(text = "1h", color = MetaInfoColor, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(spacing.sm))
+                        Icon(
+                            Icons.Filled.ArrowUpward,
+                            contentDescription = null,
+                            tint = MetaInfoColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(text = "342", color = MetaInfoColor, fontSize = 12.sp)
+                    }
+                }
+
+                // Body text
+                val sample = "This is a sample comment with an image link https://i.redd.it/abcd1234.png and some text."
+                LinkifiedText(
+                    text = sample,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TitleColor.copy(alpha = 0.9f),
+                    linkColor = SubredditColor,
+                    quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = spacing.xs, bottom = spacing.xs)
+                )
+            }
+        }
+    }
 }
 
 @Preview(showBackground = true)
