@@ -212,14 +212,16 @@ fun ImagePreviewScreen(
                         }
                     }
                 }
-                .pointerInput(Unit) {
+                .pointerInput(scale) {
                     detectTapGestures(
                         onDoubleTap = {
-                            if (scale > 1.5f) {
+                            if (scale > 1.05f) {
+                                // If zoomed in, double tap zooms out
                                 scale = 1f
                                 offset = Offset.Zero
                             } else {
-                                scale = 3f
+                                // If not zoomed, double tap dismisses
+                                onBackClick()
                             }
                         }
                     )
@@ -363,14 +365,16 @@ private fun ImageGalleryPreviewActivity(
                                 }
                             }
                         }
-                        .pointerInput(Unit) {
+                        .pointerInput(scale) {
                             detectTapGestures(
                                 onDoubleTap = {
-                                    if (scale > 1.5f) {
+                                    if (scale > 1.05f) {
+                                        // If zoomed in, double tap zooms out
                                         scale = 1f
                                         offset = Offset.Zero
                                     } else {
-                                        scale = 3f
+                                        // If not zoomed, double tap dismisses
+                                        onBackClick()
                                     }
                                 }
                             )
