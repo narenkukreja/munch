@@ -52,7 +52,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChatBubble
@@ -119,6 +118,7 @@ import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.domain.model.RedditPostMedia
 import com.munch.reddit.R
 import com.munch.reddit.domain.model.RedditComment
+import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.feature.feed.MetaInfoColor
 import com.munch.reddit.feature.feed.ModLabelColor
 import com.munch.reddit.feature.feed.OpLabelColor
@@ -133,6 +133,7 @@ import com.munch.reddit.feature.shared.FloatingToolbarButton
 import com.munch.reddit.feature.shared.InfoChip
 import coil.compose.AsyncImage
 import com.munch.reddit.feature.shared.LinkifiedText
+import com.munch.reddit.feature.shared.TableAttachmentList
 import com.munch.reddit.feature.shared.RedditPostMediaContent
 import com.munch.reddit.feature.shared.SubredditSideSheet
 import com.munch.reddit.feature.shared.formatCount
@@ -141,6 +142,8 @@ import com.munch.reddit.feature.shared.isImageUrl
 import com.munch.reddit.feature.shared.openLinkInCustomTab
 import com.munch.reddit.feature.shared.openYouTubeVideo
 import com.munch.reddit.feature.shared.parseHtmlText
+import com.munch.reddit.feature.shared.parseTablesFromHtml
+import com.munch.reddit.feature.shared.stripTablesFromHtml
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -299,11 +302,7 @@ private fun PostDetailScreen(
                     actionIconContentColor = TitleColor
                 ),
                 scrollBehavior = scrollBehavior,
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TitleColor)
-                    }
-                },
+                navigationIcon = {},
                 title = {
                     AnimatedContent(
                         targetState = topBarTitle,
@@ -866,10 +865,12 @@ private fun PostHeader(
     onOpenLink: (String) -> Unit,
     onOpenImage: (String) -> Unit
 ) {
-    val formattedTitle = remember(post.title) {
-        buildAnnotatedString { append(parseHtmlText(post.title)) }
+    val plainTitle = remember(post.title) { parseHtmlText(post.title) }
+    val formattedTitle = remember(plainTitle) {
+        buildAnnotatedString { append(plainTitle) }
     }
     val spacing = MaterialSpacing
+    val context = LocalContext.current
     val displayDomain = remember(post.domain) { post.domain.removePrefix("www.") }
     Column(
         modifier = Modifier
@@ -964,13 +965,27 @@ private fun PostHeader(
             }
         }
 
-        if (post.selfText.isNotBlank()) {
+        val parsedTables = remember(post.id, post.selfTextHtml) {
+            parseTablesFromHtml(post.selfTextHtml)
+        }
+        val sanitizedHtml = remember(post.id, post.selfTextHtml, parsedTables.size) {
+            if (parsedTables.isNotEmpty()) {
+                stripTablesFromHtml(post.selfTextHtml)
+            } else {
+                post.selfTextHtml
+            }
+        }
+        val bodyText = remember(post.id, sanitizedHtml, post.selfText) {
+            sanitizedHtml?.let { parseHtmlText(it).trim() } ?: post.selfText
+        }
+        val hasBodyText = bodyText.isNotBlank()
+        if (hasBodyText) {
             var isBodyExpanded by rememberSaveable(post.id) { mutableStateOf(true) }
             val collapsedInteraction = remember { MutableInteractionSource() }
             if (isBodyExpanded) {
                 LinkifiedText(
-                    text = post.selfText,
-                    htmlText = post.selfTextHtml,
+                    text = bodyText,
+                    htmlText = sanitizedHtml,
                     style = MaterialTheme.typography.bodyMedium,
                     color = TitleColor.copy(alpha = 0.9f),
                     linkColor = SubredditColor,
@@ -996,6 +1011,23 @@ private fun PostHeader(
                         ) { isBodyExpanded = true }
                 )
             }
+        }
+        if (parsedTables.isNotEmpty()) {
+            TableAttachmentList(
+                tables = parsedTables,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = if (hasBodyText) spacing.sm else spacing.md),
+                onViewTable = { tableIndex ->
+                    val intent = TableViewerActivity.createIntent(
+                        context = context,
+                        postTitle = plainTitle,
+                        tables = parsedTables,
+                        startIndex = tableIndex
+                    )
+                    context.startActivity(intent)
+                }
+            )
         }
 
         Row(
