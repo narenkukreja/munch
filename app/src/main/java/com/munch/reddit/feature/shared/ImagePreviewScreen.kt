@@ -225,6 +225,49 @@ fun ImagePreviewScreen(
                     )
                 }
         )
+
+        // Floating toolbar at the bottom
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            FloatingToolbar(
+                buttons = listOf(
+                    FloatingToolbarButton(
+                        icon = Icons.Filled.Share,
+                        contentDescription = "Share",
+                        onClick = {
+                            scope.launch {
+                                shareImage(context, imageUrl)
+                            }
+                        },
+                        iconTint = SubredditColor,
+                        iconSize = 20.dp
+                    ),
+                    FloatingToolbarButton(
+                        icon = Icons.Filled.Download,
+                        contentDescription = "Download",
+                        onClick = {
+                            scope.launch {
+                                downloadImage(context, imageUrl)
+                            }
+                        },
+                        iconTint = SubredditColor,
+                        iconSize = 20.dp
+                    ),
+                    FloatingToolbarButton(
+                        icon = Icons.Filled.Close,
+                        contentDescription = "Close",
+                        onClick = { onBackClick() },
+                        iconTint = SubredditColor,
+                        iconSize = 20.dp
+                    )
+                )
+            )
+        }
     }
 }
 
@@ -336,23 +379,68 @@ private fun ImageGalleryPreviewActivity(
             }
         }
 
-        Row(
+        // Page indicator and toolbar
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
-            horizontalArrangement = Arrangement.Center
+                .padding(bottom = 16.dp),
+            contentAlignment = Alignment.Center
         ) {
+            // Page counter
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
                     .background(PostBackgroundColor)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .align(Alignment.TopCenter)
             ) {
                 Text(
                     text = "${currentPage + 1} / ${imageUrls.size}",
                     color = TitleColor,
                     style = MaterialTheme.typography.labelLarge
+                )
+            }
+
+            // Floating toolbar
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(top = 48.dp)
+            ) {
+                val scope = rememberCoroutineScope()
+                FloatingToolbar(
+                    buttons = listOf(
+                        FloatingToolbarButton(
+                            icon = Icons.Filled.Share,
+                            contentDescription = "Share",
+                            onClick = {
+                                scope.launch {
+                                    shareImage(context, imageUrls[currentPage])
+                                }
+                            },
+                            iconTint = SubredditColor,
+                            iconSize = 20.dp
+                        ),
+                        FloatingToolbarButton(
+                            icon = Icons.Filled.Download,
+                            contentDescription = "Download",
+                            onClick = {
+                                scope.launch {
+                                    downloadImage(context, imageUrls[currentPage])
+                                }
+                            },
+                            iconTint = SubredditColor,
+                            iconSize = 20.dp
+                        ),
+                        FloatingToolbarButton(
+                            icon = Icons.Filled.Close,
+                            contentDescription = "Close",
+                            onClick = { onBackClick() },
+                            iconTint = SubredditColor,
+                            iconSize = 20.dp
+                        )
+                    )
                 )
             }
         }
