@@ -58,8 +58,10 @@ class SelectThemeActivity : ComponentActivity() {
                     ) {
                         SelectThemeScreen(
                             initialThemeId = appPreferences.selectedTheme,
-                            onThemeSelected = { themeId ->
+                            initialPostCardStyleId = appPreferences.selectedPostCardStyle,
+                            onSelectionSaved = { themeId, postCardStyleId ->
                                 appPreferences.selectedTheme = themeId
+                                appPreferences.selectedPostCardStyle = postCardStyleId
                                 if (fromSettings) {
                                     finish()
                                 } else {

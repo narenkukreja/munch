@@ -3,6 +3,7 @@ package com.munch.reddit.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.munch.reddit.theme.FeedThemePreset
+import com.munch.reddit.theme.PostCardStyle
 
 class AppPreferences(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(
@@ -17,6 +18,11 @@ class AppPreferences(context: Context) {
     var selectedTheme: String
         get() = prefs.getString(KEY_SELECTED_THEME, FeedThemePreset.Wormi.id) ?: FeedThemePreset.Wormi.id
         set(value) = prefs.edit().putString(KEY_SELECTED_THEME, value).apply()
+
+    var selectedPostCardStyle: String
+        get() = prefs.getString(KEY_SELECTED_POST_CARD_STYLE, PostCardStyle.CardV1.id)
+            ?: PostCardStyle.CardV1.id
+        set(value) = prefs.edit().putString(KEY_SELECTED_POST_CARD_STYLE, value).apply()
 
     // Read posts tracking
     fun getReadPostIds(): Set<String> =
@@ -38,6 +44,7 @@ class AppPreferences(context: Context) {
     companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_SELECTED_THEME = "selected_theme"
+        private const val KEY_SELECTED_POST_CARD_STYLE = "selected_post_card_style"
         private const val KEY_READ_POST_IDS = "read_post_ids"
     }
 }
