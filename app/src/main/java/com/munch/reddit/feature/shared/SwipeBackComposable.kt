@@ -15,12 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-<<<<<<< HEAD
-import androidx.compose.ui.input.pointer.consume
-import androidx.compose.ui.input.pointer.isConsumed
-=======
 import androidx.compose.ui.layout.onSizeChanged
->>>>>>> e35c4fb (Image gallery preview)
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -60,41 +55,6 @@ fun SwipeBackWrapper(
     Box(
         modifier = modifier
             .fillMaxSize()
-<<<<<<< HEAD
-            .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
-            .shadow(
-                elevation = if (animatedOffsetX > 0) 16.dp else 0.dp,
-                clip = false
-            )
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        screenWidth = size.width.toFloat()
-                        // Only allow swipe from left edge
-                        if (offset.x <= edgeWidthPx) {
-                            isSwipeStarted = 1f
-                        }
-                    },
-                    onDragEnd = {
-                        if (isSwipeStarted > 0f) {
-                            // Check if we've crossed the threshold
-                            if (offsetX > screenWidth * swipeThreshold) {
-                                onSwipeBackFinished()
-                            } else {
-                                // Animate back to original position
-                                offsetX = 0f
-                            }
-                        }
-                        isSwipeStarted = 0f
-                    },
-                    onDragCancel = {
-                        offsetX = 0f
-                        isSwipeStarted = 0f
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        if (change.isConsumed) return@detectHorizontalDragGestures
-                        if (isSwipeStarted > 0f && dragAmount > 0) {
-=======
             .onSizeChanged { containerWidth = it.width.toFloat() }
     ) {
         // Moving content with swipe offset and shadow
@@ -124,7 +84,6 @@ fun SwipeBackWrapper(
                         },
                         onHorizontalDrag = { change, dragAmount ->
                             if (!isSwipeActive || dragAmount <= 0f) return@detectHorizontalDragGestures
->>>>>>> e35c4fb (Image gallery preview)
                             change.consume()
                             offsetX = (offsetX + dragAmount).coerceAtLeast(0f)
                         },

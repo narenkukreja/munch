@@ -619,6 +619,21 @@ private fun PostList(
     // Track dismissed posts for animation
     var dismissedPostIds by remember { mutableStateOf(setOf<String>()) }
 
+    // Snapshot of read posts when hideReadPosts was enabled
+    // This prevents newly-read posts from disappearing while hideReadPosts is active
+    var hiddenReadPostIds by remember { mutableStateOf(setOf<String>()) }
+
+    // Update the snapshot when hideReadPosts changes
+    LaunchedEffect(hideReadPosts) {
+        if (hideReadPosts) {
+            // Capture current read posts
+            hiddenReadPostIds = readPostIds
+        } else {
+            // Clear when showing all posts
+            hiddenReadPostIds = emptySet()
+        }
+    }
+
     LaunchedEffect(posts, canLoadMore, isAppending) {
         if (!canLoadMore || posts.isEmpty()) return@LaunchedEffect
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
@@ -651,10 +666,10 @@ private fun PostList(
         ) {
             items(
                 items = posts.filter { post ->
-                    val isRead = readPostIds.contains(post.id)
                     val isDismissed = dismissedPostIds.contains(post.id)
+                    val isHidden = hiddenReadPostIds.contains(post.id)
                     // Only include posts that should be visible
-                    !isDismissed && !(isRead && hideReadPosts)
+                    !isDismissed && !isHidden
                 },
                 key = { it.id },
                 contentType = { post ->
