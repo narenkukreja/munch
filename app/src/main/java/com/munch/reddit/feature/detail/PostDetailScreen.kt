@@ -97,6 +97,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.isConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.consumePositionChange
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -551,6 +552,7 @@ private fun Modifier.swipeToGoBack(
                     dragStartedOnEdge = offset.x <= edgeWidthPx
                 },
                 onHorizontalDrag = { change, dragAmount ->
+                    if (change.isConsumed) return@detectHorizontalDragGestures
                     if (!dragStartedOnEdge || dragAmount <= 0f) return@detectHorizontalDragGestures
                     change.consumePositionChange()
                     dragJob?.cancel()

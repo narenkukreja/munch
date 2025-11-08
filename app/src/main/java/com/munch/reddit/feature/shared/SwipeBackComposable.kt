@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.input.pointer.isConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -80,6 +82,7 @@ fun SwipeBackWrapper(
                         isSwipeStarted = 0f
                     },
                     onHorizontalDrag = { change, dragAmount ->
+                        if (change.isConsumed) return@detectHorizontalDragGestures
                         if (isSwipeStarted > 0f && dragAmount > 0) {
                             change.consume()
                             offsetX = (offsetX + dragAmount).coerceAtLeast(0f)
