@@ -288,8 +288,7 @@ fun RedditFeedScreen(
                     onLoadMore = {},
                     isAppending = false,
                     canLoadMore = false,
-                    contentPadding = PaddingValues(vertical = spacing.lg),
-                    postCardStyle = postCardStyle
+                    contentPadding = PaddingValues(vertical = spacing.lg)
                 )
             }
 
@@ -622,8 +621,7 @@ private fun PostList(
     isAppending: Boolean,
     canLoadMore: Boolean,
     contentPadding: PaddingValues,
-    onPostDismissed: (RedditPost) -> Unit = {},
-    postCardStyle: PostCardStyle = PostCardStyle.CardV1
+    onPostDismissed: (RedditPost) -> Unit = {}
 ) {
     // Track dismissed posts for animation
     var dismissedPostIds by remember { mutableStateOf(setOf<String>()) }
@@ -819,7 +817,6 @@ internal fun RedditPostItem(
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
     isRead: Boolean = false,
-    postCardStyle: PostCardStyle = PostCardStyle.CardV1,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -847,16 +844,6 @@ internal fun RedditPostItem(
     val bottomLabel = remember(post.id, isGlobalFeed) {
         if (isGlobalFeed) subredditLabel else "u/${post.author}"
     }
-    val authorLabel = remember(post.id) {
-        post.author.removePrefix("u/").removePrefix("U/")
-    }
-    val hasSelfTextContent = remember(post.id, post.selfText, post.media) {
-        post.selfText.isNotBlank() && post.media is RedditPostMedia.None
-    }
-    val hasMediaContent = remember(post.id, post.media) {
-        post.media !is RedditPostMedia.None
-    }
-    val hasPrimaryContent = hasSelfTextContent || hasMediaContent
     val commentsLabel = remember(post.id, post.commentCount) { formatCount(post.commentCount) }
     val votesLabel = remember(post.id, post.score) { formatCount(post.score) }
 
@@ -879,42 +866,6 @@ internal fun RedditPostItem(
                 )
             )
         }
-    }
-
-    @Composable
-    fun SelfTextSection() {
-        LinkifiedText(
-            text = post.selfText,
-            htmlText = post.selfTextHtml,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TitleColor.copy(alpha = 0.9f),
-            linkColor = SubredditColor,
-            quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            maxLines = 6,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.lg, vertical = spacing.sm),
-            onLinkClick = { url -> openLinkInCustomTab(context, url) },
-            onImageClick = onImageClick,
-            onTextClick = { onPostSelected(post) }
-        )
-    }
-
-    @Composable
-    fun MediaSection() {
-        RedditPostMediaContent(
-            media = post.media,
-            modifier = Modifier.fillMaxWidth(),
-            onLinkClick = { url -> openLinkInCustomTab(context, url) },
-            onImageClick = { url -> onImageClick(url) },
-            onGalleryClick = onGalleryPreview,
-            onYoutubeClick = { videoId, _ ->
-                val youtube = post.media as? RedditPostMedia.YouTube
-                val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
-                if (id.isNotBlank()) onYouTubeSelected(id)
-            }
-        )
     }
 
     fun Modifier.subredditClickable(): Modifier {
