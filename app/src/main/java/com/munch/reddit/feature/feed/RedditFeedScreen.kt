@@ -943,263 +943,154 @@ internal fun RedditPostItem(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            when (postCardStyle) {
-                PostCardStyle.CardV1 -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.lg, vertical = spacing.md),
-                        verticalArrangement = Arrangement.spacedBy(spacing.sm)
-                    ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.lg, vertical = spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm)
+            ) {
+                Text(
+                    text = formattedTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = TitleColor
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                ) {
+                    if (post.media !is RedditPostMedia.Link && domainLabel.isNotBlank()) {
                         Text(
-                            text = formattedTitle,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = TitleColor
+                            text = domainLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-                        ) {
-                            if (post.media !is RedditPostMedia.Link && domainLabel.isNotBlank()) {
-                                Text(
-                                    text = domainLabel,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (post.isNsfw || post.isStickied) {
-                                if (post.isNsfw) {
-                                    StatusBadge(
-                                        label = "NSFW",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                                if (post.isStickied) {
-                                    StatusBadge(
-                                        label = "PINNED",
-                                        color = PinnedLabelColor
-                                    )
-                                }
-                            }
-                        }
                     }
-
-                    if (post.media is RedditPostMedia.None) {
-                        val parsedTables = remember(post.id, post.selfTextHtml) {
-                            parseTablesFromHtml(post.selfTextHtml)
-                        }
-                        val sanitizedHtml = remember(post.id, post.selfTextHtml, parsedTables.size) {
-                            if (parsedTables.isNotEmpty()) {
-                                stripTablesFromHtml(post.selfTextHtml)
-                            } else {
-                                post.selfTextHtml
-                            }
-                        }
-                        val bodyText = remember(post.id, sanitizedHtml, post.selfText) {
-                            sanitizedHtml?.let { parseHtmlText(it).trim() } ?: post.selfText
-                        }
-                        val hasBodyText = bodyText.isNotBlank()
-                        if (hasBodyText) {
-                            LinkifiedText(
-                                text = bodyText,
-                                htmlText = sanitizedHtml,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TitleColor.copy(alpha = 0.9f),
-                                linkColor = SubredditColor,
-                                quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                maxLines = 6,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = spacing.lg, vertical = spacing.sm),
-                                onLinkClick = { url -> openLinkInCustomTab(context, url) },
-                                onImageClick = onImageClick,
-                                onTextClick = { onPostSelected(post) }
+                    if (post.isNsfw || post.isStickied) {
+                        if (post.isNsfw) {
+                            StatusBadge(
+                                label = "NSFW",
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
-                        if (parsedTables.isNotEmpty()) {
-                            TableAttachmentList(
-                                tables = parsedTables,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        horizontal = spacing.lg,
-                                        vertical = if (hasBodyText) spacing.xs else spacing.sm
-                                    ),
-                                onViewTable = { tableIndex ->
-                                    val intent = TableViewerActivity.createIntent(
-                                        context = context,
-                                        postTitle = plainTitle,
-                                        tables = parsedTables,
-                                        startIndex = tableIndex
-                                    )
-                                    context.startActivity(intent)
-                                }
-                            )
-                        }
-                    }
-
-                    RedditPostMediaContent(
-                        media = post.media,
-                        modifier = Modifier.fillMaxWidth(),
-                        onLinkClick = { url -> openLinkInCustomTab(context, url) },
-                        onImageClick = { url -> onImageClick(url) },
-                        onGalleryClick = onGalleryPreview,
-                        onYoutubeClick = { videoId, url ->
-                            val youtube = post.media as? RedditPostMedia.YouTube
-                            val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
-                            if (id.isNotBlank()) onYouTubeSelected(id)
-                        }
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.lg, vertical = spacing.md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .subredditClickable(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
-                        ) {
-                            if (bottomLabel.isNotBlank()) {
-                                Text(
-                                    text = bottomLabel,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = SubredditColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.md)
-                        ) {
-                            InfoChip(
-                                icon = Icons.Filled.AccessTime,
-                                label = formatRelativeTime(post.createdUtc)
-                            )
-                            InfoChip(
-                                icon = Icons.Filled.ChatBubble,
-                                label = commentsLabel
-                            )
-                            InfoChip(
-                                icon = Icons.Filled.ArrowUpward,
-                                label = votesLabel
+                        if (post.isStickied) {
+                            StatusBadge(
+                                label = "PINNED",
+                                color = PinnedLabelColor
                             )
                         }
                     }
                 }
+            }
 
-                PostCardStyle.CardV2 -> {
-                    if (hasSelfTextContent) {
-                        SelfTextSection()
+            if (post.media is RedditPostMedia.None) {
+                val parsedTables = remember(post.id, post.selfTextHtml) {
+                    parseTablesFromHtml(post.selfTextHtml)
+                }
+                val sanitizedHtml = remember(post.id, post.selfTextHtml, parsedTables.size) {
+                    if (parsedTables.isNotEmpty()) {
+                        stripTablesFromHtml(post.selfTextHtml)
+                    } else {
+                        post.selfTextHtml
                     }
-
-                    MediaSection()
-
-                    if (hasPrimaryContent) {
-                        Spacer(modifier = Modifier.height(spacing.md))
-                    }
-
-                    Column(
+                }
+                val bodyText = remember(post.id, sanitizedHtml, post.selfText) {
+                    sanitizedHtml?.let { parseHtmlText(it).trim() } ?: post.selfText
+                }
+                val hasBodyText = bodyText.isNotBlank()
+                if (hasBodyText) {
+                    LinkifiedText(
+                        text = bodyText,
+                        htmlText = sanitizedHtml,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TitleColor.copy(alpha = 0.9f),
+                        linkColor = SubredditColor,
+                        quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 6,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = spacing.lg, vertical = spacing.md),
-                        verticalArrangement = Arrangement.spacedBy(spacing.sm)
-                    ) {
+                            .padding(horizontal = spacing.lg, vertical = spacing.sm),
+                        onLinkClick = { url -> openLinkInCustomTab(context, url) },
+                        onImageClick = onImageClick,
+                        onTextClick = { onPostSelected(post) }
+                    )
+                }
+                if (parsedTables.isNotEmpty()) {
+                    TableAttachmentList(
+                        tables = parsedTables,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = spacing.lg,
+                                vertical = if (hasBodyText) spacing.xs else spacing.sm
+                            ),
+                        onViewTable = { tableIndex ->
+                            val intent = TableViewerActivity.createIntent(
+                                context = context,
+                                postTitle = plainTitle,
+                                tables = parsedTables,
+                                startIndex = tableIndex
+                            )
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+            }
+
+            RedditPostMediaContent(
+                media = post.media,
+                modifier = Modifier.fillMaxWidth(),
+                onLinkClick = { url -> openLinkInCustomTab(context, url) },
+                onImageClick = { url -> onImageClick(url) },
+                onGalleryClick = onGalleryPreview,
+                onYoutubeClick = { videoId, url ->
+                    val youtube = post.media as? RedditPostMedia.YouTube
+                    val id = videoId.ifBlank { youtube?.videoId.orEmpty() }
+                    if (id.isNotBlank()) onYouTubeSelected(id)
+                }
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.lg, vertical = spacing.md),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .subredditClickable(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                ) {
+                    if (bottomLabel.isNotBlank()) {
                         Text(
-                            text = formattedTitle,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = TitleColor
+                            text = bottomLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = SubredditColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .subredditClickable(),
-                            verticalArrangement = Arrangement.spacedBy(spacing.xs)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(spacing.xs)
-                            ) {
-                                if (authorLabel.isNotBlank()) {
-                                    Text(
-                                        text = authorLabel,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Text(
-                                    text = "in",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = subredditLabel,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = SubredditColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (domainLabel.isNotBlank()) {
-                                    Text(
-                                        text = "•",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = domainLabel,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                            if (post.isNsfw || post.isStickied) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-                                ) {
-                                    if (post.isNsfw) {
-                                        StatusBadge(
-                                            label = "NSFW",
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                    if (post.isStickied) {
-                                        StatusBadge(
-                                            label = "PINNED",
-                                            color = PinnedLabelColor
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(spacing.xs)
-                        ) {
-                            Text(
-                                text = "$commentsLabel comments",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "$votesLabel votes",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                ) {
+                    InfoChip(
+                        icon = Icons.Filled.AccessTime,
+                        label = formatRelativeTime(post.createdUtc)
+                    )
+                    InfoChip(
+                        icon = Icons.Filled.ChatBubble,
+                        label = commentsLabel
+                    )
+                    InfoChip(
+                        icon = Icons.Filled.ArrowUpward,
+                        label = votesLabel
+                    )
                 }
             }
         }
