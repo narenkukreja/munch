@@ -59,9 +59,7 @@ class FeedActivity : ComponentActivity() {
             val context = LocalContext.current
             val appPreferences = remember { AppPreferences(context) }
             var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
-            var postCardStyleId by remember { mutableStateOf(appPreferences.selectedPostCardStyle) }
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
-            val postCardStyle = remember(postCardStyleId) { PostCardStyle.fromId(postCardStyleId) }
             val savedStateHandle = remember { SavedStateHandle() }
             val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
             val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -72,10 +70,6 @@ class FeedActivity : ComponentActivity() {
                         val updatedThemeId = appPreferences.selectedTheme
                         if (updatedThemeId != feedThemeId) {
                             feedThemeId = updatedThemeId
-                        }
-                        val updatedPostCardStyle = appPreferences.selectedPostCardStyle
-                        if (updatedPostCardStyle != postCardStyleId) {
-                            postCardStyleId = updatedPostCardStyle
                         }
                     }
                 }
@@ -124,7 +118,6 @@ class FeedActivity : ComponentActivity() {
 
                         RedditFeedScreen(
                             uiState = uiState,
-                            postCardStyle = postCardStyle,
                             subredditOptions = viewModel.subredditOptions,
                             sortOptions = viewModel.sortOptions,
                             topTimeRangeOptions = viewModel.topTimeRangeOptions,
@@ -173,7 +166,13 @@ class FeedActivity : ComponentActivity() {
                             isAppending = uiState.isAppending,
                             canLoadMore = uiState.hasMore,
                             viewModel = viewModel,
-                            onPostDismissed = { post -> viewModel.dismissPost(post.id) }
+                            onPostDismissed = { post -> viewModel.dismissPost(post.id) },
+                            onSubredditFromPostClick = { subreddit ->
+                                val intent = Intent(this@FeedActivity, FeedActivity::class.java)
+                                intent.putExtra("SELECTED_SUBREDDIT", subreddit)
+                                startActivity(intent)
+                                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                            }
                         )
                     }
                 }

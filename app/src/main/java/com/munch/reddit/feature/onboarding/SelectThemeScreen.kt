@@ -267,8 +267,7 @@ private fun OnboardingPostPreview(postCardStyle: PostCardStyle) {
         onPostSelected = {},
         onImageClick = {},
         onYouTubeSelected = {},
-        modifier = Modifier.fillMaxWidth(),
-        postCardStyle = postCardStyle
+        modifier = Modifier.fillMaxWidth()
     )
 }
 

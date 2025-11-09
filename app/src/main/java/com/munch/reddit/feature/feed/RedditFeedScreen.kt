@@ -158,7 +158,6 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 @Composable
 fun RedditFeedScreen(
     uiState: RedditFeedViewModel.RedditFeedUiState,
-    postCardStyle: PostCardStyle,
     subredditOptions: List<String>,
     sortOptions: List<RedditFeedViewModel.FeedSortOption>,
     topTimeRangeOptions: List<RedditFeedViewModel.TopTimeRange>,
@@ -180,6 +179,7 @@ fun RedditFeedScreen(
     canLoadMore: Boolean = true,
     viewModel: RedditFeedViewModel? = null,
     onPostDismissed: (RedditPost) -> Unit = {},
+    onSubredditFromPostClick: (String) -> Unit = onSelectSubreddit,
     modifier: Modifier = Modifier
 ) {
     var showSubredditSheet by remember { mutableStateOf(false) }
@@ -317,12 +317,12 @@ fun RedditFeedScreen(
                         onGalleryPreview = onGalleryPreview,
                         onYouTubeSelected = onYouTubeSelected,
                         onSubredditSelected = onSelectSubreddit,
+                        onSubredditFromPostClick = onSubredditFromPostClick,
                         onLoadMore = onLoadMore,
                         isAppending = isAppending,
                         canLoadMore = canLoadMore,
                         contentPadding = PaddingValues(vertical = spacing.lg),
-                        onPostDismissed = onPostDismissed,
-                        postCardStyle = postCardStyle
+                        onPostDismissed = onPostDismissed
                 )
 
                     // Show loading overlay when switching subreddits
@@ -617,6 +617,7 @@ private fun PostList(
     onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit,
     onSubredditSelected: (String) -> Unit = {},
+    onSubredditFromPostClick: (String) -> Unit = {},
     onLoadMore: () -> Unit,
     isAppending: Boolean,
     canLoadMore: Boolean,
@@ -707,9 +708,8 @@ private fun PostList(
                             onImageClick = onImageClick,
                             onGalleryPreview = onGalleryPreview,
                             onYouTubeSelected = onYouTubeSelected,
-                            onSubredditSelected = onSubredditSelected,
+                            onSubredditSelected = onSubredditFromPostClick,
                             isRead = isRead,
-                            postCardStyle = postCardStyle,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .alpha(0.55f)
@@ -776,12 +776,11 @@ private fun PostList(
                                 onImageClick = onImageClick,
                                 onGalleryPreview = onGalleryPreview,
                                 onYouTubeSelected = onYouTubeSelected,
-                                onSubredditSelected = onSubredditSelected,
+                                onSubredditSelected = onSubredditFromPostClick,
                                 isRead = isRead,
-                                postCardStyle = postCardStyle,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                    }
+                        }
                 }
             }
             }
@@ -872,7 +871,6 @@ internal fun RedditPostItem(
         return then(
             if (isGlobalFeed) {
                 Modifier.clickable {
-                    onSubredditTapped()
                     val subredditName = post.subreddit.removePrefix("r/").removePrefix("R/")
                     onSubredditSelected(subredditName)
                 }
@@ -1116,26 +1114,6 @@ private fun RedditPostItemPreview() {
                 onPostSelected = {},
                 onImageClick = {},
                 onYouTubeSelected = {},
-                postCardStyle = PostCardStyle.CardV1,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun RedditPostItemCardV2Preview() {
-    MunchForRedditTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            RedditPostItem(
-                post = sampleImagePost,
-                selectedSubreddit = "all",
-                onSubredditTapped = {},
-                onPostSelected = {},
-                onImageClick = {},
-                onYouTubeSelected = {},
-                postCardStyle = PostCardStyle.CardV2,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -1152,7 +1130,6 @@ private fun RedditFeedScreenPreview() {
                     posts = listOf(sampleImagePost, sampleTextPost, sampleVideoPost),
                     selectedSubreddit = "all"
                 ),
-                postCardStyle = PostCardStyle.CardV1,
                 subredditOptions = listOf("all", "android", "apple"),
                 sortOptions = RedditFeedViewModel.FeedSortOption.values().toList(),
                 topTimeRangeOptions = RedditFeedViewModel.TopTimeRange.values().toList(),
@@ -1175,7 +1152,6 @@ private fun RedditFeedScreenLoadingPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             RedditFeedScreen(
                 uiState = RedditFeedViewModel.RedditFeedUiState(isLoading = true, selectedSubreddit = "android"),
-                postCardStyle = PostCardStyle.CardV1,
                 subredditOptions = listOf("all", "android"),
                 sortOptions = RedditFeedViewModel.FeedSortOption.values().toList(),
                 topTimeRangeOptions = RedditFeedViewModel.TopTimeRange.values().toList(),
@@ -1198,7 +1174,6 @@ private fun RedditFeedScreenErrorPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             RedditFeedScreen(
                 uiState = RedditFeedViewModel.RedditFeedUiState(errorMessage = "Network error", selectedSubreddit = "apple"),
-                postCardStyle = PostCardStyle.CardV1,
                 subredditOptions = listOf("all", "apple"),
                 sortOptions = RedditFeedViewModel.FeedSortOption.values().toList(),
                 topTimeRangeOptions = RedditFeedViewModel.TopTimeRange.values().toList(),
