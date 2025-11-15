@@ -1026,7 +1026,7 @@ internal fun RedditPostItem(
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
                     InfoChip(
                         icon = Icons.Filled.AccessTime,

@@ -762,8 +762,7 @@ fun InfoChip(
         shape = RoundedCornerShape(999.dp),
         color = PostBackgroundColor,
         tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, MetaInfoColor)
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier.padding(
