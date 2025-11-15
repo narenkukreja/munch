@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,7 @@ class ImagePreviewActivity : ComponentActivity() {
 
         val imageGallery = intent.getStringArrayListExtra("IMAGE_GALLERY")
         val startIndex = intent.getIntExtra("IMAGE_GALLERY_START_INDEX", 0)
+        val usesGalleryViewer = !imageGallery.isNullOrEmpty()
 
         setContent {
             val window = this@ImagePreviewActivity.window
@@ -66,26 +68,36 @@ class ImagePreviewActivity : ComponentActivity() {
                 }
 
                 FeedTheme(feedThemePreset) {
-                    SwipeBackWrapper(
-                        onSwipeBackFinished = {
-                            finish()
-                            overridePendingTransition(com.munch.reddit.R.anim.slide_in_left, com.munch.reddit.R.anim.slide_out_right)
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        swipeThreshold = 0.4f,
-                        edgeWidth = 50f
-                    ) {
+                    val useSwipeBackWrapper = !usesGalleryViewer
+                    val finishPreview: () -> Unit = {
+                        finish()
+                        overridePendingTransition(
+                            com.munch.reddit.R.anim.slide_in_left,
+                            com.munch.reddit.R.anim.slide_out_right
+                        )
+                    }
+                    val previewContent: @Composable () -> Unit = {
                         // Do not draw an opaque background at the root; allow reveal of the detail screen beneath
                         ImagePreviewScreen(
                             imageUrl = imageUrl,
                             imageGallery = imageGallery,
                             startIndex = startIndex,
-                            onBackClick = {
-                                finish()
-                                overridePendingTransition(com.munch.reddit.R.anim.slide_in_left, com.munch.reddit.R.anim.slide_out_right)
-                            },
-                            enableEdgeSwipeBack = false // Let the wrapper handle horizontal swipe + reveal
+                            onBackClick = finishPreview,
+                            enableEdgeSwipeBack = !useSwipeBackWrapper // Fall back to internal gesture handling when wrapper disabled
                         )
+                    }
+
+                    if (useSwipeBackWrapper) {
+                        SwipeBackWrapper(
+                            onSwipeBackFinished = finishPreview,
+                            modifier = Modifier.fillMaxSize(),
+                            swipeThreshold = 0.4f,
+                            edgeWidth = 50f
+                        ) {
+                            previewContent()
+                        }
+                    } else {
+                        previewContent()
                     }
                 }
             }

@@ -43,7 +43,7 @@ import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 
 /**
- * A Material 3 bottom navigation bar with multiple icon buttons.
+ * A Material 3 floating toolbar with multiple icon buttons.
  * Designed to match the SubredditSideSheet aesthetic.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,19 +53,17 @@ fun FloatingToolbar(
     buttons: List<FloatingToolbarButton>
 ) {
     Surface(
-        shape = RoundedCornerShape(0.dp),
-        color = Color.Transparent,
+        shape = RoundedCornerShape(999.dp),
+        color = PostBackgroundColor.copy(alpha = 0.95f),
         tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+        shadowElevation = 8.dp,
         modifier = modifier
-            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(bottom = 48.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             buttons.forEach { button ->
@@ -137,6 +135,44 @@ data class FloatingToolbarButton(
     val iconTint: Color = Color.White,
     val iconSize: Dp = 20.dp
 )
+
+/**
+ * A Material 3 bottom navigation bar with transparent background for image preview screens.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ImagePreviewBottomBar(
+    modifier: Modifier = Modifier,
+    buttons: List<FloatingToolbarButton>
+) {
+    Surface(
+        shape = RoundedCornerShape(0.dp),
+        color = Color.Transparent,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        modifier = modifier
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            buttons.forEach { button ->
+                FloatingToolbarIconButton(
+                    onClick = button.onClick,
+                    icon = button.icon,
+                    contentDescription = button.contentDescription,
+                    iconTint = button.iconTint,
+                    iconSize = button.iconSize
+                )
+            }
+        }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable

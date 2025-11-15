@@ -229,7 +229,7 @@ fun ImagePreviewScreen(
         )
 
         // Bottom navigation bar
-        FloatingToolbar(
+        ImagePreviewBottomBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             buttons = listOf(
                 FloatingToolbarButton(
@@ -413,7 +413,7 @@ private fun ImageGalleryPreviewActivity(
 
         // Bottom navigation bar
         val scope = rememberCoroutineScope()
-        FloatingToolbar(
+        ImagePreviewBottomBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             buttons = listOf(
                 FloatingToolbarButton(
