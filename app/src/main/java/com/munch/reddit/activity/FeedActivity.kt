@@ -42,6 +42,8 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 class FeedActivity : ComponentActivity() {
+    private var intentSubreddit by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -52,7 +54,7 @@ class FeedActivity : ComponentActivity() {
         }
 
         // Get the selected subreddit from intent if provided
-        val selectedSubreddit = intent.getStringExtra("SELECTED_SUBREDDIT")
+        intentSubreddit = intent.getStringExtra("SELECTED_SUBREDDIT")
 
         setContent {
             val window = this@FeedActivity.window
@@ -80,8 +82,8 @@ class FeedActivity : ComponentActivity() {
             }
 
             // Select the subreddit if provided in intent
-            LaunchedEffect(selectedSubreddit) {
-                selectedSubreddit?.let {
+            LaunchedEffect(intentSubreddit) {
+                intentSubreddit?.let {
                     viewModel.selectSubreddit(it)
                 }
             }
@@ -191,6 +193,7 @@ class FeedActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // The new intent will be handled by LaunchedEffect in setContent on recomposition
+        // Update the intentSubreddit state to trigger LaunchedEffect
+        intentSubreddit = intent.getStringExtra("SELECTED_SUBREDDIT")
     }
 }

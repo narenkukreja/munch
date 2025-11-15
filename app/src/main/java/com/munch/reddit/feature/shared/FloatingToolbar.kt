@@ -43,7 +43,7 @@ import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 
 /**
- * A Material 3 floating toolbar with multiple icon buttons.
+ * A Material 3 bottom navigation bar with multiple icon buttons.
  * Designed to match the SubredditSideSheet aesthetic.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,17 +53,19 @@ fun FloatingToolbar(
     buttons: List<FloatingToolbarButton>
 ) {
     Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = PostBackgroundColor.copy(alpha = 0.95f),
+        shape = RoundedCornerShape(0.dp),
+        color = Color.Transparent,
         tonalElevation = 0.dp,
-        shadowElevation = 8.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
-            .navigationBarsPadding()
-            .padding(bottom = 48.dp)
+            .fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             buttons.forEach { button ->

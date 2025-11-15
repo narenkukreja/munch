@@ -228,48 +228,41 @@ fun ImagePreviewScreen(
                 }
         )
 
-        // Floating toolbar at the bottom
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            FloatingToolbar(
-                buttons = listOf(
-                    FloatingToolbarButton(
-                        icon = Icons.Filled.Share,
-                        contentDescription = "Share",
-                        onClick = {
-                            scope.launch {
-                                shareImage(context, imageUrl)
-                            }
-                        },
-                        iconTint = SubredditColor,
-                        iconSize = 20.dp
-                    ),
-                    FloatingToolbarButton(
-                        icon = Icons.Filled.Download,
-                        contentDescription = "Download",
-                        onClick = {
-                            scope.launch {
-                                downloadImage(context, imageUrl)
-                            }
-                        },
-                        iconTint = SubredditColor,
-                        iconSize = 20.dp
-                    ),
-                    FloatingToolbarButton(
-                        icon = Icons.Filled.Close,
-                        contentDescription = "Close",
-                        onClick = { onBackClick() },
-                        iconTint = SubredditColor,
-                        iconSize = 20.dp
-                    )
+        // Bottom navigation bar
+        FloatingToolbar(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            buttons = listOf(
+                FloatingToolbarButton(
+                    icon = Icons.Filled.Share,
+                    contentDescription = "Share",
+                    onClick = {
+                        scope.launch {
+                            shareImage(context, imageUrl)
+                        }
+                    },
+                    iconTint = SubredditColor,
+                    iconSize = 24.dp
+                ),
+                FloatingToolbarButton(
+                    icon = Icons.Filled.Download,
+                    contentDescription = "Download",
+                    onClick = {
+                        scope.launch {
+                            downloadImage(context, imageUrl)
+                        }
+                    },
+                    iconTint = SubredditColor,
+                    iconSize = 24.dp
+                ),
+                FloatingToolbarButton(
+                    icon = Icons.Filled.Close,
+                    contentDescription = "Close",
+                    onClick = { onBackClick() },
+                    iconTint = SubredditColor,
+                    iconSize = 24.dp
                 )
             )
-        }
+        )
     }
 }
 
@@ -352,19 +345,34 @@ private fun ImageGalleryPreviewActivity(
                             translationX = offset.x
                             translationY = offset.y
                         }
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                scale = (scale * zoom).coerceIn(0.5f, 4f)
-                                if (scale > 1f) {
-                                    offset = Offset(
-                                        x = (offset.x + pan.x).coerceIn(-containerSize.width * 0.5f, containerSize.width * 0.5f),
-                                        y = (offset.y + pan.y).coerceIn(-containerSize.height * 0.5f, containerSize.height * 0.5f)
-                                    )
-                                } else {
-                                    offset = Offset.Zero
+                        .then(
+                            // Only detect transform gestures when zoomed to allow pager swipes when not zoomed
+                            if (scale > 1.05f) {
+                                Modifier.pointerInput(Unit) {
+                                    detectTransformGestures { _, pan, zoom, _ ->
+                                        scale = (scale * zoom).coerceIn(0.5f, 4f)
+                                        if (scale > 1.05f) {
+                                            offset = Offset(
+                                                x = (offset.x + pan.x).coerceIn(-containerSize.width * 0.5f, containerSize.width * 0.5f),
+                                                y = (offset.y + pan.y).coerceIn(-containerSize.height * 0.5f, containerSize.height * 0.5f)
+                                            )
+                                        } else {
+                                            offset = Offset.Zero
+                                        }
+                                    }
+                                }
+                            } else {
+                                Modifier.pointerInput(Unit) {
+                                    detectTransformGestures { _, _, zoom, _ ->
+                                        // Allow pinch zoom to start
+                                        scale = (scale * zoom).coerceIn(0.5f, 4f)
+                                        if (scale <= 1.05f) {
+                                            offset = Offset.Zero
+                                        }
+                                    }
                                 }
                             }
-                        }
+                        )
                         .pointerInput(scale) {
                             detectTapGestures(
                                 onDoubleTap = {
@@ -383,21 +391,17 @@ private fun ImageGalleryPreviewActivity(
             }
         }
 
-        // Page indicator and toolbar
+        // Page counter
         Box(
             modifier = Modifier
-                .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.Center
+                .padding(bottom = 80.dp)
         ) {
-            // Page counter
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
                     .background(PostBackgroundColor)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .align(Alignment.TopCenter)
             ) {
                 Text(
                     text = "${currentPage + 1} / ${imageUrls.size}",
@@ -405,48 +409,43 @@ private fun ImageGalleryPreviewActivity(
                     style = MaterialTheme.typography.labelLarge
                 )
             }
-
-            // Floating toolbar
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(top = 48.dp)
-            ) {
-                val scope = rememberCoroutineScope()
-                FloatingToolbar(
-                    buttons = listOf(
-                        FloatingToolbarButton(
-                            icon = Icons.Filled.Share,
-                            contentDescription = "Share",
-                            onClick = {
-                                scope.launch {
-                                    shareImage(context, imageUrls[currentPage])
-                                }
-                            },
-                            iconTint = SubredditColor,
-                            iconSize = 20.dp
-                        ),
-                        FloatingToolbarButton(
-                            icon = Icons.Filled.Download,
-                            contentDescription = "Download",
-                            onClick = {
-                                scope.launch {
-                                    downloadImage(context, imageUrls[currentPage])
-                                }
-                            },
-                            iconTint = SubredditColor,
-                            iconSize = 20.dp
-                        ),
-                        FloatingToolbarButton(
-                            icon = Icons.Filled.Close,
-                            contentDescription = "Close",
-                            onClick = { onBackClick() },
-                            iconTint = SubredditColor,
-                            iconSize = 20.dp
-                        )
-                    )
-                )
-            }
         }
+
+        // Bottom navigation bar
+        val scope = rememberCoroutineScope()
+        FloatingToolbar(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            buttons = listOf(
+                FloatingToolbarButton(
+                    icon = Icons.Filled.Share,
+                    contentDescription = "Share",
+                    onClick = {
+                        scope.launch {
+                            shareImage(context, imageUrls[currentPage])
+                        }
+                    },
+                    iconTint = SubredditColor,
+                    iconSize = 24.dp
+                ),
+                FloatingToolbarButton(
+                    icon = Icons.Filled.Download,
+                    contentDescription = "Download",
+                    onClick = {
+                        scope.launch {
+                            downloadImage(context, imageUrls[currentPage])
+                        }
+                    },
+                    iconTint = SubredditColor,
+                    iconSize = 24.dp
+                ),
+                FloatingToolbarButton(
+                    icon = Icons.Filled.Close,
+                    contentDescription = "Close",
+                    onClick = { onBackClick() },
+                    iconTint = SubredditColor,
+                    iconSize = 24.dp
+                )
+            )
+        )
     }
 }
