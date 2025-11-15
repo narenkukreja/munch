@@ -9,6 +9,8 @@ import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.feature.shared.SubredditSideSheetScrollState
 import java.io.Serializable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +59,7 @@ class RedditFeedViewModel(
     private var currentTopTimeRange: TopTimeRange = TopTimeRange.DAY
     private var nextPageToken: String? = null
     private var isLoadingNextPage: Boolean = false
+    private var refreshJob: Job? = null
     // In-memory cache to avoid reloading when switching tabs back and forth
     private val feedCache = mutableMapOf<String, CachedFeed>()
     // Navigation stack for subreddit history (r/all is always at the bottom)
@@ -230,7 +233,8 @@ class RedditFeedViewModel(
         subredditSortState[currentSubreddit.lowercase()] =
             SortState(sort = currentSortOption, topTimeRange = currentTopTimeRange)
         persistSelectionState()
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _uiState.update { state ->
                 val initialPosts = if (clearExisting) emptyList() else state.posts
                 state.copy(
@@ -282,6 +286,7 @@ class RedditFeedViewModel(
                     )
                 }
                 .onFailure { throwable ->
+                    if (throwable is CancellationException) throw throwable
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
