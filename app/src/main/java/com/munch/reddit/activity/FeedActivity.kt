@@ -117,6 +117,19 @@ class FeedActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        val searchLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.StartActivityForResult()
+                        ) { result ->
+                            if (result.resultCode == Activity.RESULT_OK) {
+                                val data = result.data
+                                val searchQuery = data?.getStringExtra("SEARCH_QUERY")
+                                val selectedSubredditResult = data?.getStringExtra("SELECTED_SUBREDDIT")
+                                when {
+                                    !searchQuery.isNullOrBlank() -> viewModel.search(searchQuery)
+                                    !selectedSubredditResult.isNullOrBlank() -> viewModel.selectSubreddit(selectedSubredditResult)
+                                }
+                            }
+                        }
 
                         RedditFeedScreen(
                             uiState = uiState,
@@ -137,7 +150,7 @@ class FeedActivity : ComponentActivity() {
                             onTitleTapped = {},
                             onSearchClick = {
                                 val intent = Intent(this@FeedActivity, SearchActivity::class.java)
-                                startActivity(intent)
+                                searchLauncher.launch(intent)
                             },
                             onSettingsClick = {
                                 val intent = Intent(this@FeedActivity, SettingsActivity::class.java)

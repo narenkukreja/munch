@@ -1,5 +1,6 @@
 package com.munch.reddit.activity
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -62,14 +63,14 @@ class SearchActivity : ComponentActivity() {
                             onBackClick = { finish() },
                             onSearchAllPosts = { query ->
                                 // Pass search query back to FeedActivity
-                                setResult(RESULT_OK, intent.apply {
+                                setResult(RESULT_OK, Intent().apply {
                                     putExtra("SEARCH_QUERY", query)
                                 })
                                 finish()
                             },
                             onViewSubreddit = { subreddit ->
                                 // Pass subreddit selection back to FeedActivity
-                                setResult(RESULT_OK, intent.apply {
+                                setResult(RESULT_OK, Intent().apply {
                                     putExtra("SELECTED_SUBREDDIT", subreddit)
                                 })
                                 finish()

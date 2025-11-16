@@ -126,7 +126,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import org.koin.androidx.compose.koinViewModel
 import com.munch.reddit.feature.shared.FloatingToolbar
 import com.munch.reddit.feature.shared.FloatingToolbarButton
-import com.munch.reddit.feature.shared.InfoChip
 import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.feature.shared.RedditPostMediaContent
 import com.munch.reddit.feature.shared.SubredditSideSheet
@@ -741,13 +740,13 @@ private fun PostList(
                                 val isSwipeActive = dismissState.progress.fraction > 0f
                                 val backgroundColor by animateColorAsState(
                                     targetValue = if (isSwipeActive) {
-                                        MaterialTheme.colorScheme.errorContainer
+                                        Color(0xFFFF0000)
                                     } else {
                                         Color.Transparent
                                     },
                                     label = "dismiss_background_color"
                                 )
-                                val contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                val contentColor = Color.White
                                 val labelAlpha by animateFloatAsState(
                                     targetValue = if (isSwipeActive) 1f else 0f,
                                     label = "dismiss_label_alpha"
@@ -863,6 +862,27 @@ internal fun RedditPostItem(
                     horizontal = spacing.sm,
                     vertical = spacing.xs * 0.75f
                 )
+            )
+        }
+    }
+
+    @Composable
+    fun MetaInfoStat(icon: ImageVector, label: String) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MetaInfoColor,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MetaInfoColor,
+                maxLines = 1
             )
         }
     }
@@ -1005,12 +1025,11 @@ internal fun RedditPostItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.lg, vertical = spacing.md),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .subredditClickable(),
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
@@ -1020,23 +1039,24 @@ internal fun RedditPostItem(
                             style = MaterialTheme.typography.labelLarge,
                             color = SubredditColor,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.subredditClickable()
                         )
                     }
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
                 ) {
-                    InfoChip(
+                    MetaInfoStat(
                         icon = Icons.Filled.AccessTime,
                         label = formatRelativeTime(post.createdUtc)
                     )
-                    InfoChip(
+                    MetaInfoStat(
                         icon = Icons.Filled.ChatBubble,
                         label = commentsLabel
                     )
-                    InfoChip(
+                    MetaInfoStat(
                         icon = Icons.Filled.ArrowUpward,
                         label = votesLabel
                     )

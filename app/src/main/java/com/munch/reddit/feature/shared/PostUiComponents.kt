@@ -77,6 +77,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.munch.reddit.ui.theme.MaterialSpacing
 
 @Composable
@@ -163,6 +166,7 @@ fun RedditPostVideo(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val exoPlayer = remember(media.url) {
         ExoPlayer.Builder(context).build().apply {
             val builder = MediaItem.Builder().setUri(media.url)
@@ -183,20 +187,39 @@ fun RedditPostVideo(
     var playbackPositionMs by remember(media.url) { mutableStateOf(0L) }
     var scrubPositionMs by remember(media.url) { mutableStateOf(0L) }
     var isScrubbing by remember(media.url) { mutableStateOf(false) }
+    var shouldResumeOnResume by remember(media.url) { mutableStateOf(true) }
 
     LaunchedEffect(isMuted) {
         exoPlayer.volume = if (isMuted) 0f else 1f
     }
 
-    DisposableEffect(exoPlayer) {
+    DisposableEffect(exoPlayer, lifecycleOwner) {
         val listener = object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
                 durationMs = player.duration.takeIf { it > 0 } ?: durationMs
             }
         }
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    shouldResumeOnResume = exoPlayer.isPlaying
+                    exoPlayer.pause()
+                }
+                Lifecycle.Event.ON_STOP -> exoPlayer.pause()
+                Lifecycle.Event.ON_RESUME -> {
+                    if (shouldResumeOnResume) {
+                        exoPlayer.playWhenReady = true
+                        exoPlayer.play()
+                    }
+                }
+                else -> Unit
+            }
+        }
         exoPlayer.addListener(listener)
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
         onDispose {
             exoPlayer.removeListener(listener)
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
             exoPlayer.release()
         }
     }

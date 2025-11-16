@@ -131,7 +131,6 @@ import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.feature.feed.VisualModColor
 import com.munch.reddit.feature.shared.FloatingToolbar
 import com.munch.reddit.feature.shared.FloatingToolbarButton
-import com.munch.reddit.feature.shared.InfoChip
 import coil.compose.AsyncImage
 import com.munch.reddit.feature.shared.LinkifiedText
 import com.munch.reddit.feature.shared.TableAttachmentList
@@ -1043,10 +1042,11 @@ private fun PostHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = spacing.md),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f, fill = false),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -1060,11 +1060,20 @@ private fun PostHeader(
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.md)
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
-                InfoChip(icon = Icons.Filled.AccessTime, label = formatRelativeTime(post.createdUtc))
-                InfoChip(icon = Icons.Filled.ChatBubble, label = formatCount(post.commentCount))
-                InfoChip(icon = Icons.Filled.ArrowUpward, label = formatCount(post.score))
+                MetaInfoStat(
+                    icon = Icons.Filled.AccessTime,
+                    label = formatRelativeTime(post.createdUtc)
+                )
+                MetaInfoStat(
+                    icon = Icons.Filled.ChatBubble,
+                    label = formatCount(post.commentCount)
+                )
+                MetaInfoStat(
+                    icon = Icons.Filled.ArrowUpward,
+                    label = formatCount(post.score)
+                )
             }
         }
     }
@@ -1654,6 +1663,31 @@ private fun RedditPostMedia.shareableUrl(): String? = when (this) {
     is RedditPostMedia.Streamable -> url.takeIf { it.isNotBlank() }
     is RedditPostMedia.StreamFF -> url.takeIf { it.isNotBlank() }
     is RedditPostMedia.StreamIn -> url.takeIf { it.isNotBlank() }
+}
+
+@Composable
+private fun MetaInfoStat(
+    icon: ImageVector,
+    label: String
+) {
+    val spacing = MaterialSpacing
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MetaInfoColor,
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MetaInfoColor,
+            maxLines = 1
+        )
+    }
 }
 
 @Composable

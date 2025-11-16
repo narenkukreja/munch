@@ -1,9 +1,10 @@
 package com.munch.reddit.feature.shared
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.browser.customtabs.CustomTabsIntent
+import com.munch.reddit.activity.WebViewActivity
 
 private val TrailingUrlDelimiters = charArrayOf(')', ']', '}', '>', ',', '.', ';', ':', '"', '\'')
 
@@ -28,23 +29,47 @@ private fun sanitizeUrl(url: String): String {
 fun openLinkInCustomTab(context: Context, url: String) {
     val sanitized = sanitizeUrl(url.trim())
     if (sanitized.isBlank()) return
-    val uri = runCatching { Uri.parse(sanitized) }.getOrElse { return }
-    val customTabsIntent = CustomTabsIntent.Builder()
-        .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-        .setShowTitle(true)
-        .setUrlBarHidingEnabled(true)
-        .build().apply {
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
+    val normalizedUrl = if (sanitized.startsWith("http://", ignoreCase = true) ||
+        sanitized.startsWith("https://", ignoreCase = true)
+    ) {
+        sanitized
+    } else {
+        "https://$sanitized"
+    }
 
-    runCatching {
-        customTabsIntent.launchUrl(context, uri)
-    }.onFailure {
-        val fallbackIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+    val uri = runCatching { Uri.parse(normalizedUrl) }.getOrElse { return }
+    val scheme = uri.scheme?.lowercase()
+    if (scheme != "http" && scheme != "https") {
+        openExternalLink(context, uri)
+        return
+    }
+
+    val intent = WebViewActivity.buildIntent(
+        context = context,
+        url = uri.toString(),
+        title = uri.host
+    ).apply {
+        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        if (context !is Activity) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        runCatching { context.startActivity(fallbackIntent) }
     }
+
+    runCatching {
+        context.startActivity(intent)
+    }.onFailure {
+        openExternalLink(context, uri)
+    }
+}
+
+private fun openExternalLink(context: Context, uri: Uri) {
+    val fallbackIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        if (context !is Activity) {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+    runCatching { context.startActivity(fallbackIntent) }
 }
 
 fun openYouTubeVideo(context: Context, videoId: String, watchUrl: String) {
