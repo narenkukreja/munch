@@ -8,8 +8,6 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -25,7 +23,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -85,7 +82,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -98,7 +94,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.consumePositionChange
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -108,9 +103,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.composed
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
@@ -294,10 +287,6 @@ private fun PostDetailScreen(
     Scaffold(
         containerColor = SpacerBackgroundColor,
         modifier = Modifier
-            .swipeToGoBack(
-                onBack = onBack,
-                restrictToEdge = false
-            )
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
@@ -546,89 +535,6 @@ private fun PostDetailScreen(
         onSettingsClick = onSettingsClick,
         scrollState = sideSheetScrollState
     )
-}
-
-private fun Modifier.swipeToGoBack(
-    onBack: () -> Unit,
-    edgeWidth: Dp = 24.dp,
-    triggerDistance: Dp = 96.dp,
-    restrictToEdge: Boolean = true
-): Modifier = composed {
-    val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val currentOnBack by rememberUpdatedState(onBack)
-    val dragOffset = remember { Animatable(0f) }
-    val edgeWidthPx = if (restrictToEdge) with(density) { edgeWidth.toPx() } else Float.POSITIVE_INFINITY
-    val triggerDistancePx = with(density) { triggerDistance.toPx() }
-    var dragStartedOnEdge by remember { mutableStateOf(false) }
-    var dragJob by remember { mutableStateOf<Job?>(null) }
-
-    fun resetOffset() {
-        dragJob?.cancel()
-        dragJob = null
-        scope.launch {
-            dragOffset.stop()
-            dragOffset.animateTo(
-                targetValue = 0f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            )
-        }
-    }
-
-    this
-        .offset { IntOffset(dragOffset.value.roundToInt(), 0) }
-        .pointerInput(edgeWidthPx, triggerDistancePx) {
-            detectHorizontalDragGestures(
-                onDragStart = { offset ->
-                    dragStartedOnEdge = offset.x <= edgeWidthPx
-                },
-                onHorizontalDrag = { change, dragAmount ->
-                    if (change.isConsumed) return@detectHorizontalDragGestures
-                    if (!dragStartedOnEdge || dragAmount <= 0f) return@detectHorizontalDragGestures
-                    change.consumePositionChange()
-                    dragJob?.cancel()
-                    val job = scope.launch {
-                        val newOffset = (dragOffset.value + dragAmount).coerceAtLeast(0f)
-                        dragOffset.snapTo(newOffset)
-                    }
-                    dragJob = job
-                },
-                onDragEnd = {
-                    val shouldNavigateBack = dragStartedOnEdge && dragOffset.value >= triggerDistancePx
-                    dragJob?.cancel()
-                    dragJob = null
-                    scope.launch {
-                        dragOffset.stop()
-                        if (shouldNavigateBack) {
-                            dragOffset.animateTo(
-                                targetValue = triggerDistancePx * 1.1f,
-                                animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)
-                            )
-                            currentOnBack()
-                            dragOffset.snapTo(0f)
-                        } else {
-                            dragOffset.animateTo(
-                                targetValue = 0f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )
-                        }
-                    }
-                    dragStartedOnEdge = false
-                },
-                onDragCancel = {
-                    dragStartedOnEdge = false
-                    dragJob?.cancel()
-                    dragJob = null
-                    resetOffset()
-                }
-            )
-        }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

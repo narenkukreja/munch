@@ -149,7 +149,8 @@ class FeedActivity : ComponentActivity() {
                                 val intent = Intent(this@FeedActivity, PostDetailActivity::class.java)
                                 intent.putExtra("PERMALINK", post.permalink)
                                 postDetailLauncher.launch(intent)
-                                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                                // Keep the feed in place so swipe-back can reveal it smoothly
+                                overridePendingTransition(R.anim.slide_in_right, 0)
                             },
                             onRetry = viewModel::refresh,
                             onTitleTapped = {},
