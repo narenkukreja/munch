@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -39,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
@@ -47,6 +51,7 @@ import coil.request.ImageRequest
 import coil.size.Size
 import com.munch.reddit.feature.feed.SubredditColor
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 private fun shareImage(context: Context, imageUrl: String) {
     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -111,7 +116,9 @@ fun ImagePreviewScreen(
         ) { page ->
             PreviewImageItem(
                 imageUrl = images[page],
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .doubleTapToClose(onBackClick)
             )
         }
 
@@ -263,3 +270,21 @@ private fun PreviewImageItem(
         modifier = modifier
     )
 }
+
+private fun Modifier.doubleTapToClose(onDoubleTap: () -> Unit): Modifier =
+    pointerInput(onDoubleTap) {
+        awaitEachGesture {
+            val firstDown = awaitFirstDown(requireUnconsumed = false)
+            val firstUp = waitForUpOrCancellation()
+            if (firstUp == null) return@awaitEachGesture
+
+            val secondDown = withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                awaitFirstDown(requireUnconsumed = false)
+            } ?: return@awaitEachGesture
+
+            val secondUp = waitForUpOrCancellation()
+            if (secondUp != null && secondDown.uptimeMillis - firstDown.uptimeMillis <= viewConfiguration.doubleTapTimeoutMillis) {
+                onDoubleTap()
+            }
+        }
+    }
