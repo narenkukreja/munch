@@ -202,7 +202,10 @@ fun RedditPostVideo(
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
-                    shouldResumeOnResume = exoPlayer.isPlaying
+                    // Track whether the user intended playback, even if the player was buffering
+                    shouldResumeOnResume = exoPlayer.playWhenReady || exoPlayer.isPlaying
+                    // Reset audio state when leaving the screen so it comes back muted
+                    isMuted = true
                     exoPlayer.pause()
                 }
                 Lifecycle.Event.ON_STOP -> exoPlayer.pause()
