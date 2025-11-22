@@ -69,11 +69,17 @@ class PostDetailActivity : ComponentActivity() {
                 }
 
                 FeedTheme(feedThemePreset) {
+                    val finishWithTransition = {
+                        finish()
+                        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+                    }
+                    val finishAfterSwipe = {
+                        finish()
+                        // Exit animation is handled by the swipe translation itself
+                        overridePendingTransition(0, 0)
+                    }
                     SwipeBackWrapper(
-                        onSwipeBackFinished = {
-                            finish()
-                            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-                        },
+                        onSwipeBackFinished = finishAfterSwipe,
                         modifier = Modifier.fillMaxSize(),
                         swipeThreshold = 0.4f,
                         edgeWidth = 50f
@@ -86,8 +92,7 @@ class PostDetailActivity : ComponentActivity() {
                             PostDetailActivityContent(
                                 permalink = permalink,
                                 onBack = {
-                                    finish()
-                                    overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+                                    finishWithTransition()
                                 }
                             )
                         }

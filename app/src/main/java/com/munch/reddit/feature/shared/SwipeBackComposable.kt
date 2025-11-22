@@ -1,6 +1,9 @@
 package com.munch.reddit.feature.shared
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,12 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Custom swipe-back wrapper that enables edge-to-edge swipe gesture
@@ -38,56 +43,90 @@ fun SwipeBackWrapper(
     val density = LocalDensity.current
     val edgeWidthPx = with(density) { edgeWidth.dp.toPx() }
 
-    var offsetX by remember { mutableFloatStateOf(0f) }
+    val offsetX = remember { Animatable(0f) }
     var dragEligible by remember { mutableStateOf(false) }
     var containerWidth by remember { mutableFloatStateOf(0f) }
-
-    val animatedOffsetX by animateFloatAsState(
-        targetValue = offsetX,
-        label = "swipeOffset"
-    )
+    var isExiting by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { containerWidth = it.width.toFloat() }
-            .pointerInput(edgeWidthPx, swipeThreshold) {
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        dragEligible = offset.x <= edgeWidthPx
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        if (!dragEligible || dragAmount <= 0f) return@detectHorizontalDragGestures
-                        change.consume()
-                        offsetX = (offsetX + dragAmount).coerceAtLeast(0f)
-                    },
-                    onDragEnd = {
-                        if (!dragEligible) {
-                            offsetX = 0f
-                            return@detectHorizontalDragGestures
+            .pointerInput(edgeWidthPx, swipeThreshold, containerWidth) {
+                coroutineScope {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            if (isExiting) return@detectHorizontalDragGestures
+                            dragEligible = offset.x <= edgeWidthPx
+                            if (dragEligible) {
+                                launch { offsetX.stop() }
+                            }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            if (!dragEligible || dragAmount <= 0f || isExiting) return@detectHorizontalDragGestures
+                            change.consume()
+                            val maxWidth = containerWidth.takeIf { it > 0f } ?: Float.MAX_VALUE
+                            launch {
+                                offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, maxWidth))
+                            }
+                        },
+                        onDragEnd = {
+                            val threshold = (containerWidth.takeIf { it > 0f } ?: 1f) * swipeThreshold
+                            val shouldNavigateBack = dragEligible && offsetX.value > threshold
+                            dragEligible = false
+
+                            if (shouldNavigateBack) {
+                                isExiting = true
+                                launch {
+                                    try {
+                                        val targetWidth = containerWidth.takeIf { it > 0f } ?: threshold / swipeThreshold
+                                        // Finish the motion to the screen edge before triggering the callback
+                                        offsetX.animateTo(
+                                            targetValue = targetWidth,
+                                            animationSpec = tween(
+                                                durationMillis = 220,
+                                                easing = FastOutLinearInEasing
+                                            )
+                                        )
+                                        onSwipeBackFinished()
+                                    } finally {
+                                        isExiting = false
+                                    }
+                                }
+                            } else {
+                                launch {
+                                    offsetX.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = tween(
+                                            durationMillis = 200,
+                                            easing = FastOutSlowInEasing
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            dragEligible = false
+                            launch {
+                                offsetX.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = tween(
+                                        durationMillis = 200,
+                                        easing = FastOutSlowInEasing
+                                    )
+                                )
+                            }
                         }
-                        val threshold = (containerWidth.takeIf { it > 0f } ?: 1f) * swipeThreshold
-                        val shouldNavigateBack = offsetX > threshold
-                        dragEligible = false
-                        if (shouldNavigateBack) {
-                            onSwipeBackFinished()
-                        } else {
-                            offsetX = 0f
-                        }
-                    },
-                    onDragCancel = {
-                        dragEligible = false
-                        offsetX = 0f
-                    }
-                )
+                    )
+                }
             }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                 .shadow(
-                    elevation = if (animatedOffsetX > 0) 16.dp else 0.dp,
+                    elevation = if (offsetX.value > 0) 16.dp else 0.dp,
                     clip = false
                 )
         ) {

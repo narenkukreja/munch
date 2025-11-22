@@ -69,12 +69,17 @@ class ImagePreviewActivity : ComponentActivity() {
 
                 FeedTheme(feedThemePreset) {
                     val useSwipeBackWrapper = !usesGalleryViewer
-                    val finishPreview: () -> Unit = {
+                    val finishPreviewWithTransition: () -> Unit = {
                         finish()
                         overridePendingTransition(
                             com.munch.reddit.R.anim.slide_in_left,
                             com.munch.reddit.R.anim.slide_out_right
                         )
+                    }
+                    val finishPreviewAfterSwipe: () -> Unit = {
+                        finish()
+                        // Let the swipe translation handle the exit instead of the default animation
+                        overridePendingTransition(0, 0)
                     }
                     val previewContent: @Composable () -> Unit = {
                         // Do not draw an opaque background at the root; allow reveal of the detail screen beneath
@@ -82,13 +87,13 @@ class ImagePreviewActivity : ComponentActivity() {
                             imageUrl = imageUrl,
                             imageGallery = imageGallery,
                             startIndex = startIndex,
-                            onBackClick = finishPreview
+                            onBackClick = finishPreviewWithTransition
                         )
                     }
 
                     if (useSwipeBackWrapper) {
                         SwipeBackWrapper(
-                            onSwipeBackFinished = finishPreview,
+                            onSwipeBackFinished = finishPreviewAfterSwipe,
                             modifier = Modifier.fillMaxSize(),
                             swipeThreshold = 0.4f,
                             edgeWidth = 50f
