@@ -9,9 +9,12 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.compositeOver
+import com.munch.reddit.theme.TextSizeDefaults
 
 private fun expressiveColorScheme(isDark: Boolean) = if (isDark) {
     darkColorScheme(
@@ -77,6 +80,13 @@ private fun expressiveColorScheme(isDark: Boolean) = if (isDark) {
     )
 }
 
+private val LocalCommentTextSize = staticCompositionLocalOf { TextSizeDefaults.DefaultSizeSp }
+
+val CommentTextSize: Float
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalCommentTextSize.current
+
 private val ExpressiveSpacing = MunchSpacing(
     xs = 4.dp,
     sm = 8.dp,
@@ -90,6 +100,7 @@ private val ExpressiveSpacing = MunchSpacing(
 fun MunchForRedditTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    commentTextSize: Float = TextSizeDefaults.DefaultSizeSp,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -100,8 +111,12 @@ fun MunchForRedditTheme(
 
         else -> expressiveColorScheme(darkTheme)
     }
+    val clampedTextSize = TextSizeDefaults.clamp(commentTextSize)
 
-    CompositionLocalProvider(LocalSpacing provides ExpressiveSpacing) {
+    CompositionLocalProvider(
+        LocalSpacing provides ExpressiveSpacing,
+        LocalCommentTextSize provides clampedTextSize
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

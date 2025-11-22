@@ -54,8 +54,9 @@ class PostDetailActivity : ComponentActivity() {
             val appPreferences = remember { AppPreferences(context) }
             var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
+            val commentTextSize = remember { appPreferences.commentTextSize }
 
-            MunchForRedditTheme {
+            MunchForRedditTheme(commentTextSize = commentTextSize) {
                 val view = LocalView.current
                 val colorScheme = MaterialTheme.colorScheme
                 SideEffect {

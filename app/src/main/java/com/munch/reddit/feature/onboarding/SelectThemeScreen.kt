@@ -2,6 +2,7 @@ package com.munch.reddit.feature.onboarding
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,12 +28,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.munch.reddit.theme.TextSizeDefaults
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.domain.model.RedditPostMedia
 import com.munch.reddit.feature.feed.FeedTheme
@@ -57,24 +62,30 @@ import com.munch.reddit.feature.feed.SubredditColor
 import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import com.munch.reddit.ui.theme.MaterialSpacing
+import com.munch.reddit.ui.theme.withCommentTextSize
 import com.munch.reddit.theme.FeedThemePreset
 import com.munch.reddit.theme.PostCardStyle
 import com.munch.reddit.feature.shared.LinkifiedText
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
+import kotlin.collections.buildList
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectThemeScreen(
     initialThemeId: String,
     initialPostCardStyleId: String,
-    onSelectionSaved: (String, String) -> Unit,
+    initialTextSize: Float,
+    onSelectionSaved: (String, String, Float) -> Unit,
+    onTextSizeChanged: (Float) -> Unit = {},
     onBack: (() -> Unit)? = null
 ) {
     // Match feed/detail backgrounds so previews look accurate
     val backgroundColor = SpacerBackgroundColor
     var selectedThemeId by rememberSaveable { mutableStateOf(initialThemeId.lowercase()) }
     var selectedPostCardStyleId by rememberSaveable { mutableStateOf(initialPostCardStyleId.lowercase()) }
+    var selectedTextSize by rememberSaveable { mutableStateOf(TextSizeDefaults.clamp(initialTextSize)) }
 
     LaunchedEffect(initialThemeId) {
         selectedThemeId = initialThemeId.lowercase()
@@ -82,6 +93,10 @@ fun SelectThemeScreen(
 
     LaunchedEffect(initialPostCardStyleId) {
         selectedPostCardStyleId = initialPostCardStyleId.lowercase()
+    }
+
+    LaunchedEffect(initialTextSize) {
+        selectedTextSize = TextSizeDefaults.clamp(initialTextSize)
     }
 
     val selectedPreset = FeedThemePreset.fromId(selectedThemeId)
@@ -135,12 +150,111 @@ fun SelectThemeScreen(
                             fontWeight = FontWeight.SemiBold,
                             color = TitleColor
                         )
-                        OnboardingCommentPreview()
+                        OnboardingCommentPreview(textSize = selectedTextSize)
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = "Comment text size",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth(),
+                color = TitleColor
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                color = SpacerBackgroundColor
+            ) {
+                Text(
+                    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque habitant morbi tristique senectus et netus.",
+                    style = MaterialTheme.typography.bodyLarge.withCommentTextSize(selectedTextSize),
+                    color = CommentTextColor,
+                    modifier = Modifier.padding(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val sliderSteps = TextSizeDefaults.sliderSteps
+            val textSizeOptions = remember {
+                buildList {
+                    var current = TextSizeDefaults.MinSizeSp
+                    while (current <= TextSizeDefaults.MaxSizeSp + 0.01f) {
+                        add(TextSizeDefaults.roundToStep(current))
+                        current += TextSizeDefaults.StepSizeSp
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val sliderColors = SliderDefaults.colors(
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    thumbColor = MaterialTheme.colorScheme.primary
+                )
+                Slider(
+                    value = selectedTextSize,
+                    onValueChange = { value ->
+                        val snapped = TextSizeDefaults.clamp(value)
+                        if (selectedTextSize != snapped) {
+                            selectedTextSize = snapped
+                            onTextSizeChanged(snapped)
+                        }
+                    },
+                    valueRange = TextSizeDefaults.MinSizeSp..TextSizeDefaults.MaxSizeSp,
+                    steps = sliderSteps,
+                    colors = sliderColors,
+                    thumb = {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .border(
+                                    width = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                                    shape = CircleShape
+                                )
+                        )
+                    },
+                    track = { sliderState ->
+                        SliderDefaults.Track(
+                            sliderState = sliderState,
+                            colors = sliderColors
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "${selectedTextSize.roundToInt()} sp",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Theme Preset",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth(),
+                color = TitleColor
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -160,40 +274,11 @@ fun SelectThemeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Post design",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth(),
-                color = TitleColor
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                ThemeOptionButton(
-                    label = PostCardStyle.CardV1.displayName,
-                    isSelected = selectedPostCardStyleId == PostCardStyle.CardV1.id,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedPostCardStyleId = PostCardStyle.CardV1.id }
-                )
-                ThemeOptionButton(
-                    label = PostCardStyle.CardV2.displayName,
-                    isSelected = selectedPostCardStyleId == PostCardStyle.CardV2.id,
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedPostCardStyleId = PostCardStyle.CardV2.id }
-                )
-            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { onSelectionSaved(selectedThemeId, selectedPostCardStyleId) },
+                onClick = { onSelectionSaved(selectedThemeId, selectedPostCardStyleId, selectedTextSize) },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -272,8 +357,9 @@ private fun OnboardingPostPreview(postCardStyle: PostCardStyle) {
 }
 
 @Composable
-private fun OnboardingCommentPreview() {
+private fun OnboardingCommentPreview(textSize: Float) {
     val spacing = MaterialSpacing
+    val commentTextStyle = MaterialTheme.typography.bodyMedium.withCommentTextSize(textSize)
     // Match the real CommentItem layout (depth = 0)
     Column(
         modifier = Modifier
@@ -331,7 +417,7 @@ private fun OnboardingCommentPreview() {
                 val sample = "This is a sample comment with an image link https://i.redd.it/abcd1234.png and some text."
                 LinkifiedText(
                     text = sample,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = commentTextStyle,
                     color = TitleColor.copy(alpha = 0.9f),
                     linkColor = SubredditColor,
                     quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
@@ -344,6 +430,32 @@ private fun OnboardingCommentPreview() {
     }
 }
 
+@Composable
+private fun SliderDotsRow(
+    sizes: List<Float>,
+    selectedSize: Float
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        sizes.forEach { size ->
+            val isActive = size <= selectedSize + 0.01f
+            Box(
+                modifier = Modifier
+                    .size(if (isActive) 10.dp else 8.dp)
+                    .clip(CircleShape)
+                    .background(
+                        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                    )
+            )
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun SelectThemeScreenPreview() {
@@ -351,7 +463,8 @@ private fun SelectThemeScreenPreview() {
         SelectThemeScreen(
             initialThemeId = FeedThemePreset.Narwhal.id,
             initialPostCardStyleId = PostCardStyle.CardV1.id,
-            onSelectionSaved = { _, _ -> }
+            initialTextSize = TextSizeDefaults.DefaultSizeSp,
+            onSelectionSaved = { _, _, _ -> }
         )
     }
 }

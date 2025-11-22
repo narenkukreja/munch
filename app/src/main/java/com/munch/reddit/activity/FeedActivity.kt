@@ -61,6 +61,7 @@ class FeedActivity : ComponentActivity() {
             val context = LocalContext.current
             val appPreferences = remember { AppPreferences(context) }
             var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
+            var commentTextSize by remember { mutableStateOf(appPreferences.commentTextSize) }
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
             val savedStateHandle = remember { SavedStateHandle() }
             val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
@@ -72,6 +73,10 @@ class FeedActivity : ComponentActivity() {
                         val updatedThemeId = appPreferences.selectedTheme
                         if (updatedThemeId != feedThemeId) {
                             feedThemeId = updatedThemeId
+                        }
+                        val updatedTextSize = appPreferences.commentTextSize
+                        if (updatedTextSize != commentTextSize) {
+                            commentTextSize = updatedTextSize
                         }
                     }
                 }
@@ -88,7 +93,7 @@ class FeedActivity : ComponentActivity() {
                 }
             }
 
-            MunchForRedditTheme {
+            MunchForRedditTheme(commentTextSize = commentTextSize) {
                 val view = LocalView.current
                 val colorScheme = MaterialTheme.colorScheme
                 SideEffect {

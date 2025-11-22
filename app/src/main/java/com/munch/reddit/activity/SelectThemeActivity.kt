@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -36,9 +41,10 @@ class SelectThemeActivity : ComponentActivity() {
         setContent {
             val window = this@SelectThemeActivity.window
             val context = LocalContext.current
-            val appPreferences = AppPreferences(context)
+            val appPreferences = remember { AppPreferences(context) }
+            var previewTextSize by rememberSaveable { mutableStateOf(appPreferences.commentTextSize) }
 
-            MunchForRedditTheme {
+            MunchForRedditTheme(commentTextSize = previewTextSize) {
                 val view = LocalView.current
                 val colorScheme = MaterialTheme.colorScheme
                 SideEffect {
@@ -59,9 +65,12 @@ class SelectThemeActivity : ComponentActivity() {
                         SelectThemeScreen(
                             initialThemeId = appPreferences.selectedTheme,
                             initialPostCardStyleId = appPreferences.selectedPostCardStyle,
-                            onSelectionSaved = { themeId, postCardStyleId ->
+                            initialTextSize = previewTextSize,
+                            onSelectionSaved = { themeId, postCardStyleId, textSize ->
                                 appPreferences.selectedTheme = themeId
                                 appPreferences.selectedPostCardStyle = postCardStyleId
+                                appPreferences.commentTextSize = textSize
+                                previewTextSize = textSize
                                 if (fromSettings) {
                                     finish()
                                 } else {
@@ -71,6 +80,9 @@ class SelectThemeActivity : ComponentActivity() {
                                     startActivity(intent)
                                     finish()
                                 }
+                            },
+                            onTextSizeChanged = { updatedSize ->
+                                previewTextSize = updatedSize
                             },
                             onBack = if (fromSettings) {
                                 { finish() }

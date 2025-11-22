@@ -144,8 +144,10 @@ import com.munch.reddit.feature.shared.openYouTubeVideo
 import com.munch.reddit.feature.shared.parseHtmlText
 import com.munch.reddit.feature.shared.parseTablesFromHtml
 import com.munch.reddit.feature.shared.stripTablesFromHtml
+import com.munch.reddit.ui.theme.CommentTextSize
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
+import com.munch.reddit.ui.theme.withCommentTextSize
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.Job
@@ -218,7 +220,12 @@ fun PostDetailActivityContent(
         },
         onOpenLink = { url -> openLinkInCustomTab(context, url) },
         onSearchClick = { /* no-op in standalone activity */ },
-        onSettingsClick = { /* no-op */ },
+        onSettingsClick = {
+            activity?.let {
+                val intent = Intent(context, com.munch.reddit.activity.SettingsActivity::class.java)
+                it.startActivity(intent)
+            }
+        },
         subredditOptions = SubredditCatalog.defaultSubreddits,
         viewModel = viewModel
     )
@@ -1096,6 +1103,8 @@ private fun CommentItem(
     var showCommentOptionsDialog by remember { mutableStateOf(false) }
     val headerInteraction = remember { MutableInteractionSource() }
     val spacing = MaterialSpacing
+    val commentTextSize = CommentTextSize
+    val commentBodyStyle = MaterialTheme.typography.bodyMedium.withCommentTextSize(commentTextSize)
     val parentVerticalPadding = spacing.sm * 0.5f
     val nestedVerticalPadding = spacing.xs * 0.5f
     val verticalPadding = if (node.depth > 0) nestedVerticalPadding else parentVerticalPadding
@@ -1282,7 +1291,7 @@ private fun CommentItem(
                 LinkifiedText(
                     text = comment.body,
                     htmlText = comment.bodyHtml,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = commentBodyStyle,
                     color = TitleColor.copy(alpha = 0.9f),
                     linkColor = SubredditColor,
                     quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
