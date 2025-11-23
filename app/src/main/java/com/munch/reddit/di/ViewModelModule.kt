@@ -18,5 +18,5 @@ val viewModelModule = module {
             appPreferences = get()
         )
     }
-    viewModel { (permalink: String) -> PostDetailViewModel(permalink, get(), get()) }
+    viewModel { (permalink: String) -> PostDetailViewModel(permalink, get(), get(), get()) }
 }

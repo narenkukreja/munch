@@ -175,6 +175,7 @@ fun PostDetailActivityContent(
         onRetry = viewModel::refresh,
         onSelectSort = viewModel::selectSort,
         onToggleComment = viewModel::toggleComment,
+        onShowCollapsedHistory = viewModel::showCollapsedHistory,
         onUserLoadMoreComments = viewModel::userLoadMoreComments,
         onAutoLoadMoreComments = viewModel::loadMoreComments,
         onLoadRemoteReplies = viewModel::loadMoreRemoteReplies,
@@ -236,6 +237,7 @@ private fun PostDetailScreen(
     onRetry: () -> Unit,
     onSelectSort: (String) -> Unit,
     onToggleComment: (String) -> Unit,
+    onShowCollapsedHistory: () -> Unit,
     onUserLoadMoreComments: () -> Unit,
     onAutoLoadMoreComments: () -> Unit,
     onLoadRemoteReplies: (String) -> Unit,
@@ -351,6 +353,7 @@ private fun PostDetailScreen(
                             sortOptions = uiState.sortOptions,
                             onSelectSort = onSelectSort,
                             onToggleComment = onToggleComment,
+                            onShowCollapsedHistory = onShowCollapsedHistory,
                             onUserLoadMoreComments = onUserLoadMoreComments,
                             onAutoLoadMoreComments = onAutoLoadMoreComments,
                             onLoadRemoteReplies = onLoadRemoteReplies,
@@ -558,6 +561,7 @@ private fun PostDetailContent(
     sortOptions: List<String>,
     onSelectSort: (String) -> Unit,
     onToggleComment: (String) -> Unit,
+    onShowCollapsedHistory: () -> Unit,
     onUserLoadMoreComments: () -> Unit,
     onAutoLoadMoreComments: () -> Unit,
     onLoadRemoteReplies: (String) -> Unit,
@@ -676,6 +680,7 @@ private fun PostDetailContent(
                     is PostDetailViewModel.CommentListItem.CommentNode -> "comment"
                     is PostDetailViewModel.CommentListItem.LoadMoreRepliesNode -> "load_more"
                     is PostDetailViewModel.CommentListItem.RemoteRepliesNode -> "remote_replies"
+                    is PostDetailViewModel.CommentListItem.CollapsedHistoryDivider -> "collapsed_history"
                 }
             }
         ) { item ->
@@ -683,6 +688,10 @@ private fun PostDetailContent(
                 modifier = Modifier.padding(vertical = spacing.xs)
             ) {
                 when (item) {
+                    is PostDetailViewModel.CommentListItem.CollapsedHistoryDivider -> CollapsedHistoryItem(
+                        hiddenCount = item.hiddenCount,
+                        onShowCollapsedHistory = onShowCollapsedHistory
+                    )
                     is PostDetailViewModel.CommentListItem.CommentNode -> CommentItem(
                         node = item,
                         onToggleComment = onToggleComment,
@@ -1025,6 +1034,67 @@ private fun PostHeader(
                     label = formatCount(post.score)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CollapsedHistoryItem(
+    hiddenCount: Int,
+    onShowCollapsedHistory: () -> Unit
+) {
+    val spacing = MaterialSpacing
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.lg)
+            .padding(bottom = spacing.xs),
+        shape = RoundedCornerShape(spacing.sm),
+        color = PostBackgroundColor,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, SubredditColor.copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onShowCollapsedHistory)
+                .padding(horizontal = spacing.md, vertical = spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccessTime,
+                contentDescription = null,
+                tint = SubredditColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(spacing.xs * 0.5f)
+            ) {
+                Text(
+                    text = "Viewing newer comments",
+                    color = TitleColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                val label = if (hiddenCount == 1) {
+                    "View older comments (1 hidden)"
+                } else {
+                    "View older comments (${formatCount(hiddenCount)} hidden)"
+                }
+                Text(
+                    text = label,
+                    color = SubredditColor,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ArrowDownward,
+                contentDescription = null,
+                tint = SubredditColor
+            )
         }
     }
 }
@@ -1760,6 +1830,7 @@ private fun PostDetailScreenPreview() {
             onRetry = {},
             onSelectSort = {},
             onToggleComment = {},
+            onShowCollapsedHistory = {},
             onUserLoadMoreComments = {},
             onAutoLoadMoreComments = {},
             onLoadRemoteReplies = {},
@@ -1788,6 +1859,7 @@ private fun PostDetailScreenLoadingPreview() {
                 onRetry = {},
                 onSelectSort = {},
                 onToggleComment = {},
+                onShowCollapsedHistory = {},
                 onUserLoadMoreComments = {},
                 onAutoLoadMoreComments = {},
                 onLoadRemoteReplies = {},
@@ -1815,6 +1887,7 @@ private fun PostDetailScreenErrorPreview() {
             onRetry = {},
             onSelectSort = {},
             onToggleComment = {},
+            onShowCollapsedHistory = {},
             onUserLoadMoreComments = {},
             onAutoLoadMoreComments = {},
             onLoadRemoteReplies = {},

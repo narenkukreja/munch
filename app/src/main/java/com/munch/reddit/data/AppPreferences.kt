@@ -62,6 +62,25 @@ class AppPreferences(context: Context) {
         }
     }
 
+    fun getCollapsedCommentIds(postId: String): Set<String> {
+        if (postId.isBlank()) return emptySet()
+        val key = collapsedCommentsKey(postId)
+        return prefs.getStringSet(key, emptySet()) ?: emptySet()
+    }
+
+    fun setCollapsedCommentIds(postId: String, ids: Set<String>) {
+        if (postId.isBlank()) return
+        val key = collapsedCommentsKey(postId)
+        prefs.edit().putStringSet(key, ids.filter { it.isNotBlank() }.toSet()).apply()
+    }
+
+    fun clearCollapsedCommentIds(postId: String) {
+        if (postId.isBlank()) return
+        val key = collapsedCommentsKey(postId)
+        prefs.edit().remove(key).apply()
+    }
+
+    private fun collapsedCommentsKey(postId: String): String = "collapsed_comments_$postId"
 
     companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"

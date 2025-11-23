@@ -3,6 +3,7 @@ package com.munch.reddit.feature.detail
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.data.repository.RedditRepository
 import com.munch.reddit.data.repository.SubredditRepository
 import com.munch.reddit.domain.SubredditCatalog
@@ -19,7 +20,8 @@ import kotlinx.coroutines.launch
 class PostDetailViewModel(
     private val permalink: String,
     private val repository: RedditRepository,
-    private val subredditRepository: SubredditRepository
+    private val subredditRepository: SubredditRepository,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     private val sortOptions = listOf(TOP_SORT, "best", "new")
@@ -31,6 +33,11 @@ class PostDetailViewModel(
 
     private var commentTree: List<RedditComment> = emptyList()
     private val collapsedIds = mutableSetOf<String>()
+    private val userCollapsedIds = mutableSetOf<String>()
+    private var historicalCollapsedIds: Set<String> = emptySet()
+    private var showingCollapsedHistory: Boolean = true
+    private var allowCollapsedHistory: Boolean = true
+    private var currentPostKey: String? = null
     private val repliesVisibleCounts = mutableMapOf<String, Int>()
     private var postAuthorLower: String = ""
     private var nextCommentCursor: RedditCommentCursor? = null
@@ -70,9 +77,20 @@ class PostDetailViewModel(
     fun toggleComment(commentId: String) {
         val validId = commentId.takeIf { it.isNotBlank() } ?: return
         if (!commentTree.containsCommentId(validId)) return
-        if (!collapsedIds.add(validId)) {
+        if (collapsedIds.contains(validId)) {
             collapsedIds.remove(validId)
+            userCollapsedIds.remove(validId)
+        } else {
+            collapsedIds.add(validId)
+            userCollapsedIds.add(validId)
         }
+        persistCollapsedComments()
+        emitComments()
+    }
+
+    fun showCollapsedHistory() {
+        if (showingCollapsedHistory) return
+        showingCollapsedHistory = true
         emitComments()
     }
 
@@ -228,21 +246,6 @@ class PostDetailViewModel(
             }
             runCatching { repository.fetchPostDetail(permalink, limit = COMMENT_PAGE_LIMIT, sort = sort) }
                 .onSuccess { detail ->
-                    commentTree = detail.comments
-                    collapsedIds.clear()
-                    collapsedIds.addAll(commentTree.collectAutoModeratorIds())
-                    repliesVisibleCounts.clear()
-                    remoteLoadingParents.clear()
-                    remoteLoadErrors.clear()
-                    manualParentFetches.clear()
-                    postAuthorLower = detail.post.author.lowercase()
-                    nextCommentCursor = detail.nextCommentCursor
-                    autoFetchBudget = if (nextCommentCursor?.hasWork() == true) {
-                        INITIAL_AUTO_COMMENT_BATCHES
-                    } else {
-                        0
-                    }
-
                     // Determine default sort for stickied daily/weekly threads
                     val effectiveSort = if (!hasLoadedInitialPost && shouldDefaultToNewSort(detail.post)) {
                         hasLoadedInitialPost = true
@@ -250,6 +253,39 @@ class PostDetailViewModel(
                     } else {
                         hasLoadedInitialPost = true
                         sort
+                    }
+
+                    commentTree = detail.comments
+                    postAuthorLower = detail.post.author.lowercase()
+                    currentPostKey = resolvePostKey(detail.post)
+                    allowCollapsedHistory = shouldApplyCollapsedHistory(detail.post, effectiveSort)
+                    val savedCollapsed = if (allowCollapsedHistory) {
+                        appPreferences.getCollapsedCommentIds(currentPostKey.orEmpty())
+                    } else {
+                        emptySet()
+                    }
+                    userCollapsedIds.clear()
+                    userCollapsedIds.addAll(savedCollapsed)
+                    collapsedIds.clear()
+                    collapsedIds.addAll(commentTree.collectAutoModeratorIds())
+                    collapsedIds.addAll(userCollapsedIds)
+                    repliesVisibleCounts.clear()
+                    remoteLoadingParents.clear()
+                    remoteLoadErrors.clear()
+                    manualParentFetches.clear()
+                    pruneCollapsedForCurrentTree()
+                    persistCollapsedComments()
+                    historicalCollapsedIds = if (allowCollapsedHistory) {
+                        userCollapsedIds.filter { it.isNotBlank() }.toSet()
+                    } else {
+                        emptySet()
+                    }
+                    showingCollapsedHistory = historicalCollapsedIds.isEmpty() || !allowCollapsedHistory
+                    nextCommentCursor = detail.nextCommentCursor
+                    autoFetchBudget = if (nextCommentCursor?.hasWork() == true) {
+                        INITIAL_AUTO_COMMENT_BATCHES
+                    } else {
+                        0
                     }
 
                     val pendingRemoteCount = nextCommentCursor?.totalPendingWorkCount() ?: 0
@@ -316,14 +352,26 @@ class PostDetailViewModel(
         _uiState.value = _uiState.value.copy(comments = buildDisplayComments())
     }
 
-    private fun buildDisplayComments(): List<CommentListItem> =
-        commentTree.flattenWithDepth(
+    private fun buildDisplayComments(): List<CommentListItem> {
+        val hiddenIds = if (allowCollapsedHistory && !showingCollapsedHistory) {
+            historicalCollapsedIds.filter { it.isNotBlank() }.toSet()
+        } else {
+            emptySet()
+        }
+        val filtered = commentTree.filterHiddenComments(hiddenIds)
+        val flattened = filtered.comments.flattenWithDepth(
             collapsedIds = collapsedIds,
             postAuthorLower = postAuthorLower,
             repliesVisibleCounts = repliesVisibleCounts,
             loadingRemoteParents = remoteLoadingParents,
             remoteLoadErrors = remoteLoadErrors
         )
+        return if (allowCollapsedHistory && !showingCollapsedHistory && filtered.hiddenCount > 0) {
+            listOf(CommentListItem.CollapsedHistoryDivider(hiddenCount = filtered.hiddenCount)) + flattened
+        } else {
+            flattened
+        }
+    }
 
     private fun prefetchInitialCommentBatches() {
         val cursor = nextCommentCursor ?: return
@@ -426,6 +474,7 @@ class PostDetailViewModel(
                     Log.d(TAG, "Updated pending counts: ${page.pendingCountsByParent}")
                 }
                 commentTree = updatedTree
+                pruneCollapsedForCurrentTree()
                 // Capture manual fetch parents BEFORE cleaning
                 val wasManualFetch = manualParentFetches.toSet()
                 cleanResolvedRemoteParents(updatedTree)
@@ -463,6 +512,28 @@ class PostDetailViewModel(
             }
         )
     }
+
+    private fun persistCollapsedComments() {
+        if (!allowCollapsedHistory) return
+        val key = currentPostKey?.takeIf { it.isNotBlank() } ?: return
+        val sanitized = userCollapsedIds.filter { it.isNotBlank() }.toSet()
+        if (sanitized.isEmpty()) {
+            appPreferences.clearCollapsedCommentIds(key)
+        } else {
+            appPreferences.setCollapsedCommentIds(key, sanitized)
+        }
+    }
+
+    private fun pruneCollapsedForCurrentTree() {
+        collapsedIds.removeAll { it.isBlank() }
+        userCollapsedIds.removeAll { it.isBlank() }
+    }
+
+    private fun shouldApplyCollapsedHistory(post: RedditPost, sort: String): Boolean {
+        return !(post.isStickied && sort.equals("new", ignoreCase = true))
+    }
+
+    private fun resolvePostKey(post: RedditPost): String = post.id.ifBlank { post.permalink }
 
     private fun expandVisibilityForParents(parentIds: Set<String>, manualFetchParents: Set<String> = emptySet()) {
         if (parentIds.isEmpty()) return
@@ -562,6 +633,12 @@ class PostDetailViewModel(
         ) : CommentListItem() {
             override val key: String = "remote_more_${parentId}_$depth"
         }
+
+        data class CollapsedHistoryDivider(
+            val hiddenCount: Int
+        ) : CommentListItem() {
+            override val key: String = "collapsed_history_$hiddenCount"
+        }
     }
 
     data class PostDetailUiState(
@@ -587,6 +664,33 @@ class PostDetailViewModel(
         const val AUTO_EXPAND_REPLY_THRESHOLD = 50
         private const val TAG = "PostDetailVM"
     }
+}
+
+private data class FilteredComments(
+    val comments: List<RedditComment>,
+    val hiddenCount: Int
+)
+
+private fun List<RedditComment>.filterHiddenComments(hiddenIds: Set<String>): FilteredComments {
+    if (hiddenIds.isEmpty()) return FilteredComments(this, 0)
+    var hiddenCount = 0
+    val filtered = mapNotNull { comment ->
+        if (hiddenIds.contains(comment.id)) {
+            hiddenCount++
+            val childResult = comment.children.filterHiddenComments(hiddenIds)
+            hiddenCount += childResult.hiddenCount
+            null
+        } else {
+            val childResult = comment.children.filterHiddenComments(hiddenIds)
+            hiddenCount += childResult.hiddenCount
+            if (childResult.comments === comment.children) {
+                comment
+            } else {
+                comment.copy(children = childResult.comments)
+            }
+        }
+    }
+    return FilteredComments(filtered, hiddenCount)
 }
 
 private fun List<RedditComment>.flattenWithDepth(
