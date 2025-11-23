@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import com.munch.reddit.activity.WebViewActivity
+import androidx.browser.customtabs.CustomTabsIntent
 
 private val TrailingUrlDelimiters = charArrayOf(')', ']', '}', '>', ',', '.', ';', ':', '"', '\'')
 
@@ -44,19 +44,22 @@ fun openLinkInCustomTab(context: Context, url: String) {
         return
     }
 
-    val intent = WebViewActivity.buildIntent(
-        context = context,
-        url = uri.toString(),
-        title = uri.host
-    ).apply {
-        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        if (context !is Activity) {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+    val customTabsIntent = CustomTabsIntent.Builder()
+        .setShowTitle(true)
+        .build()
+    runCatching {
+        val chromePackage = "com.android.chrome"
+        context.packageManager.getApplicationInfo(chromePackage, 0)
+        customTabsIntent.intent.setPackage(chromePackage)
+    }
+
+    customTabsIntent.intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    if (context !is Activity) {
+        customTabsIntent.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     runCatching {
-        context.startActivity(intent)
+        customTabsIntent.launchUrl(context, uri)
     }.onFailure {
         openExternalLink(context, uri)
     }
