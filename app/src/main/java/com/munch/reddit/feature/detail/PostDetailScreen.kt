@@ -8,10 +8,10 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -19,6 +19,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -911,34 +914,60 @@ private fun PostHeader(
         if (hasBodyText) {
             var isBodyExpanded by rememberSaveable(post.id) { mutableStateOf(true) }
             val collapsedInteraction = remember { MutableInteractionSource() }
-            if (isBodyExpanded) {
-                LinkifiedText(
-                    text = bodyText,
-                    htmlText = sanitizedHtml,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TitleColor.copy(alpha = 0.9f),
-                    linkColor = SubredditColor,
-                    quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = spacing.sm),
-                    onLinkClick = onOpenLink,
-                    onImageClick = onOpenImage,
-                    onTextClick = { isBodyExpanded = false }
-                )
-            } else {
-                Text(
-                    text = "Post text hidden - tap to show",
-                    color = MetaInfoColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = spacing.sm)
-                        .clickable(
-                            interactionSource = collapsedInteraction,
-                            indication = null
-                        ) { isBodyExpanded = true }
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = tween(
+                            durationMillis = 320,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+            ) {
+                AnimatedVisibility(
+                    visible = isBodyExpanded,
+                    enter = fadeIn(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)) +
+                        expandVertically(animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)) +
+                        shrinkVertically(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)),
+                    label = "post_body_expand"
+                ) {
+                    LinkifiedText(
+                        text = bodyText,
+                        htmlText = sanitizedHtml,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TitleColor.copy(alpha = 0.9f),
+                        linkColor = SubredditColor,
+                        quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = spacing.sm),
+                        onLinkClick = onOpenLink,
+                        onImageClick = onOpenImage,
+                        onTextClick = { isBodyExpanded = false }
+                    )
+                }
+                AnimatedVisibility(
+                    visible = !isBodyExpanded,
+                    enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)) +
+                        expandVertically(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) +
+                        shrinkVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
+                    label = "post_body_collapse"
+                ) {
+                    Text(
+                        text = "Post text hidden - tap to show",
+                        color = MetaInfoColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = spacing.sm)
+                            .clickable(
+                                interactionSource = collapsedInteraction,
+                                indication = null
+                            ) { isBodyExpanded = true }
+                    )
+                }
             }
         }
         if (parsedTables.isNotEmpty()) {
@@ -1015,7 +1044,6 @@ private fun CommentItem(
     val flairText = comment.authorFlairText?.takeIf { it.isNotBlank() }
     var showFlairDialog by remember { mutableStateOf(false) }
     var showCommentOptionsDialog by remember { mutableStateOf(false) }
-    val headerInteraction = remember { MutableInteractionSource() }
     val spacing = MaterialSpacing
     val commentTextSize = CommentTextSize
     val commentBodyStyle = MaterialTheme.typography.bodyMedium.withCommentTextSize(commentTextSize)
@@ -1023,6 +1051,13 @@ private fun CommentItem(
     val nestedVerticalPadding = spacing.xs * 0.5f
     val verticalPadding = if (node.depth > 0) nestedVerticalPadding else parentVerticalPadding
     val contentBottomPadding = if (node.depth > 0) nestedVerticalPadding else spacing.xs
+    val repliesLabel = remember(node.replyCount) {
+        when (node.replyCount) {
+            0 -> "Replies hidden (0 replies)"
+            1 -> "Replies hidden (1 reply)"
+            else -> "Replies hidden (${formatCount(node.replyCount)} replies)"
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1053,6 +1088,12 @@ private fun CommentItem(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = if (node.depth > 0) spacing.xs else 0.dp)
+                .animateContentSize(
+                    animationSpec = tween(
+                        durationMillis = 320,
+                        easing = FastOutSlowInEasing
+                    )
+                )
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1201,7 +1242,14 @@ private fun CommentItem(
                     )
                 }
             }
-            if (!node.isCollapsed) {
+            AnimatedVisibility(
+                visible = !node.isCollapsed,
+                enter = fadeIn(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)) +
+                    expandVertically(animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)) +
+                    shrinkVertically(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)),
+                label = "comment_expand_transition"
+            ) {
                 LinkifiedText(
                     text = comment.body,
                     htmlText = comment.bodyHtml,
@@ -1218,13 +1266,16 @@ private fun CommentItem(
                         showCommentOptionsDialog = true
                     }
                 )
-            } else {
+            }
+            AnimatedVisibility(
+                visible = node.isCollapsed,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)) +
+                    expandVertically(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) +
+                    shrinkVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
+                label = "comment_collapse_transition"
+            ) {
                 val collapsedInteraction = remember { MutableInteractionSource() }
-                val repliesLabel = when (node.replyCount) {
-                    0 -> "Replies hidden (0 replies)"
-                    1 -> "Replies hidden (1 reply)"
-                    else -> "Replies hidden (${formatCount(node.replyCount)} replies)"
-                }
                 Text(
                     text = repliesLabel,
                     color = MetaInfoColor,
