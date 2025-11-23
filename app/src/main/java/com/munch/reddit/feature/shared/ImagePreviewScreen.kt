@@ -263,6 +263,7 @@ private fun PreviewImageItem(
     val maxScale = 4f
 
     fun clampOffset(targetOffset: Offset, targetScale: Float): Offset {
+        if (!targetOffset.isFinite()) return Offset.Zero
         if (containerSize == IntSize.Zero) return Offset.Zero
         val maxX = (containerSize.width.toFloat() * (targetScale - 1f)) / 2f
         val maxY = (containerSize.height.toFloat() * (targetScale - 1f)) / 2f
@@ -312,17 +313,29 @@ private fun PreviewImageItem(
                     while (true) {
                         val event = awaitPointerEvent()
                         val pointerCount = event.changes.count { it.pressed }
-                        val zoomChange = event.calculateZoom()
-                        val panChange = event.calculatePan()
-                        val isZoomGesture = pointerCount > 1 || scale > minScale
+                        if (pointerCount == 0) {
+                            // All fingers lifted; keep the current transform but stop this gesture.
+                            offset = clampOffset(offset, scale)
+                            break
+                        }
+                        val zoomChange = event.calculateZoom().takeIf { it.isFinite() } ?: 1f
+                        val panChange = event.calculatePan().takeIf { it.isFinite() } ?: Offset.Zero
+                        val isZoomGesture = pointerCount > 1
+                        val canPanOrZoom = isZoomGesture || scale > minScale
 
-                        if (isZoomGesture) {
-                            val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
-                            val scaleFactor = newScale / scale
+                        if (canPanOrZoom) {
+                            val newScaleRaw = if (isZoomGesture) {
+                                (scale * zoomChange).coerceIn(minScale, maxScale)
+                            } else scale
+                            val newScale = newScaleRaw.takeIf { it.isFinite() } ?: scale
+                            val scaleFactor = (newScale / scale).takeIf { it.isFinite() } ?: 1f
                             val centroid = event.calculateCentroid(useCurrent = true)
+                            val safeCentroid = if (centroid.isFinite()) centroid else Offset.Zero
                             val adjustedOffset = offset +
                                 panChange +
-                                (offset - centroid) * (scaleFactor - 1f)
+                                if (isZoomGesture) {
+                                    (offset - safeCentroid) * (scaleFactor - 1f)
+                                } else Offset.Zero
 
                             scale = newScale
                             offset = if (newScale == minScale) {
@@ -346,6 +359,8 @@ private fun PreviewImageItem(
             }
     )
 }
+
+private fun Offset.isFinite(): Boolean = x.isFinite() && y.isFinite()
 
 private fun Modifier.doubleTapToClose(onDoubleTap: () -> Unit): Modifier =
     pointerInput(onDoubleTap) {
