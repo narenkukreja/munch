@@ -8,6 +8,12 @@ import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -18,9 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -34,15 +37,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
@@ -244,6 +256,23 @@ private fun PreviewImageItem(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var scale by remember(imageUrl) { mutableFloatStateOf(1f) }
+    var offset by remember(imageUrl) { mutableStateOf(Offset.Zero) }
+    var containerSize by remember(imageUrl) { mutableStateOf(IntSize.Zero) }
+    val minScale = 1f
+    val maxScale = 4f
+
+    fun clampOffset(targetOffset: Offset, targetScale: Float): Offset {
+        if (containerSize == IntSize.Zero) return Offset.Zero
+        val maxX = (containerSize.width.toFloat() * (targetScale - 1f)) / 2f
+        val maxY = (containerSize.height.toFloat() * (targetScale - 1f)) / 2f
+        if (maxX <= 0f && maxY <= 0f) return Offset.Zero
+        return Offset(
+            x = targetOffset.x.coerceIn(-maxX, maxX),
+            y = targetOffset.y.coerceIn(-maxY, maxY)
+        )
+    }
+
     val isGif = remember(imageUrl) { imageUrl.lowercase().contains(".gif") }
     val imageRequest = remember(imageUrl, isGif) {
         ImageRequest.Builder(context)
@@ -268,6 +297,53 @@ private fun PreviewImageItem(
         contentDescription = "Image preview",
         contentScale = ContentScale.Fit,
         modifier = modifier
+            .onSizeChanged { containerSize = it }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = offset.x
+                translationY = offset.y
+                // Use top-left as the transform origin so our manual centroid math stays consistent.
+                transformOrigin = TransformOrigin(0f, 0f)
+            }
+            .pointerInput(imageUrl, containerSize) {
+                // Handle pinch-to-zoom and panning when zoomed without stealing single-finger swipes used by the pager.
+                awaitEachGesture {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.count { it.pressed }
+                        val zoomChange = event.calculateZoom()
+                        val panChange = event.calculatePan()
+                        val isZoomGesture = pointerCount > 1 || scale > minScale
+
+                        if (isZoomGesture) {
+                            val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
+                            val scaleFactor = newScale / scale
+                            val centroid = event.calculateCentroid(useCurrent = true)
+                            val adjustedOffset = offset +
+                                panChange +
+                                (offset - centroid) * (scaleFactor - 1f)
+
+                            scale = newScale
+                            offset = if (newScale == minScale) {
+                                Offset.Zero
+                            } else {
+                                clampOffset(adjustedOffset, newScale)
+                            }
+
+                            event.changes.forEach { change ->
+                                if (change.positionChanged()) {
+                                    change.consume()
+                                }
+                            }
+                        }
+
+                        if (event.changes.none { it.pressed }) {
+                            break
+                        }
+                    }
+                }
+            }
     )
 }
 
