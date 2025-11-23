@@ -129,6 +129,7 @@ import com.munch.reddit.feature.shared.FloatingToolbarButton
 import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.feature.shared.RedditPostMediaContent
 import com.munch.reddit.feature.shared.SubredditSideSheet
+import com.munch.reddit.feature.shared.SideSheetEdgeSwipeTarget
 import com.munch.reddit.feature.shared.formatCount
 import com.munch.reddit.feature.shared.formatRelativeTime
 import com.munch.reddit.feature.shared.TableAttachmentList
@@ -401,6 +402,13 @@ fun RedditFeedScreen(
                         )
                     )
                 }
+            }
+
+            if (!showSubredditSheet) {
+                SideSheetEdgeSwipeTarget(
+                    onOpen = { showSubredditSheet = true },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
             }
         }
     }
