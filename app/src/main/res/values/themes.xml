@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MunchForReddit" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MunchForReddit" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
 
     <!-- Translucent theme for activities with swipe-back -->
     <style name="Theme.MunchForReddit.Translucent" parent="Theme.MunchForReddit">
