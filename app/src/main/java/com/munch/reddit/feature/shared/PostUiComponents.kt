@@ -80,6 +80,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.media3.common.PlaybackException
 import com.munch.reddit.ui.theme.MaterialSpacing
 
 @Composable
@@ -172,6 +173,8 @@ fun RedditPostVideo(
             val builder = MediaItem.Builder().setUri(media.url)
             if (media.url.endsWith(".m3u8", ignoreCase = true)) {
                 builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+            } else if (media.url.endsWith(".mpd", ignoreCase = true)) {
+                builder.setMimeType(MimeTypes.APPLICATION_MPD)
             }
             val mediaItem = builder.build()
             setMediaItem(mediaItem)
@@ -197,6 +200,14 @@ fun RedditPostVideo(
         val listener = object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
                 durationMs = player.duration.takeIf { it > 0 } ?: durationMs
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                android.util.Log.e(
+                    "MediaPlayer",
+                    "Error playing ${media.url} (audio=${media.hasAudio} w=${media.width} h=${media.height})",
+                    error
+                )
             }
         }
         val lifecycleObserver = LifecycleEventObserver { _, event ->

@@ -1,6 +1,7 @@
 package com.munch.reddit.data.remote.dto
 
 import android.net.Uri
+import android.util.Log
 import androidx.core.text.HtmlCompat
 import com.google.gson.annotations.SerializedName
 import com.munch.reddit.domain.model.RedditPost
@@ -68,7 +69,8 @@ data class RedditCommentDto(
 )
 
 data class RedditPreviewDto(
-    @SerializedName("images") val images: List<PreviewImageDto> = emptyList()
+    @SerializedName("images") val images: List<PreviewImageDto> = emptyList(),
+    @SerializedName("reddit_video_preview") val redditVideoPreview: RedditVideoDto? = null
 )
 
 data class GalleryDataDto(
@@ -108,6 +110,8 @@ data class RedditVideoDto(
     @SerializedName("fallback_url") val fallbackUrl: String? = null,
     @SerializedName("has_audio") val hasAudio: Boolean = false,
     @SerializedName("hls_url") val hlsUrl: String? = null,
+    @SerializedName("dash_url") val dashUrl: String? = null,
+    @SerializedName("scrubber_media_url") val scrubberMediaUrl: String? = null,
     @SerializedName("height") val height: Int? = null,
     @SerializedName("width") val width: Int? = null,
     @SerializedName("duration") val duration: Int? = null
@@ -144,6 +148,7 @@ fun RedditPostDto.toDomain(): RedditPost {
     val previewImage = resolvePreviewImage()
     val oembedData = secureMedia?.oembed ?: media?.oembed
     val mediaEmbedData = secureMediaEmbed ?: mediaEmbed
+    val videoData = secureMedia?.redditVideo ?: media?.redditVideo ?: preview?.redditVideoPreview
     val normalizedOverriddenUrl = overriddenUrl.cleanUrl()
     val normalizedUrl = url.cleanUrl()
     val normalizedThumbnail = thumbnail.cleanUrl()
@@ -182,6 +187,7 @@ fun RedditPostDto.toDomain(): RedditPost {
         score = score,
         createdUtc = createdUtc,
         media = resolveMedia(
+            video = videoData,
             previewImage = previewImage,
             oembed = oembedData,
             mediaEmbed = mediaEmbedData,
@@ -197,6 +203,7 @@ fun RedditPostDto.toDomain(): RedditPost {
 }
 
 private fun RedditPostDto.resolveMedia(
+    video: RedditVideoDto?,
     previewImage: PreviewImageData?,
     oembed: OEmbedDto?,
     mediaEmbed: MediaEmbedDto?,
@@ -206,17 +213,45 @@ private fun RedditPostDto.resolveMedia(
     normalizedThumbnail: String?,
     isRedditMediaDomain: Boolean
 ): RedditPostMedia {
-    val video = secureMedia?.redditVideo ?: media?.redditVideo
-    val playbackUrl = video?.hlsUrl.cleanUrl()
-        ?: video?.fallbackUrl.cleanUrl()
-    return when {
-        playbackUrl != null -> RedditPostMedia.Video(
-            url = playbackUrl,
-            hasAudio = video?.hasAudio ?: false,
-            width = video?.width,
-            height = video?.height,
-            durationSeconds = video?.duration
+    val explicitUrls = listOf(
+        video?.hlsUrl,
+        video?.dashUrl,
+        video?.fallbackUrl,
+        video?.scrubberMediaUrl
+    ).mapNotNull { it.cleanUrl() }
+    val fallbackUrls = buildRedditVideoFallbacks(destinationUrl)
+    val playbackUrl = (explicitUrls + fallbackUrls).firstOrNull()
+    if (playbackUrl == null) {
+        Log.d(
+            "MediaResolver",
+            "post=$id video=null isVideo=$isVideo hls=${video?.hlsUrl} dash=${video?.dashUrl} fallback=${video?.fallbackUrl} scrub=${video?.scrubberMediaUrl} previewVideo=${preview?.redditVideoPreview != null} domain=$resolvedDomain postHint=$postHint dest=$destinationUrl derived=${fallbackUrls.joinToString()}"
         )
+    } else {
+        val source = when (playbackUrl) {
+            video?.hlsUrl.cleanUrl() -> "hls"
+            video?.dashUrl.cleanUrl() -> "dash"
+            video?.fallbackUrl.cleanUrl() -> "fallback"
+            video?.scrubberMediaUrl.cleanUrl() -> "scrubber"
+            in fallbackUrls -> "derived"
+            else -> "unknown"
+        }
+        Log.d(
+            "MediaResolver",
+            "post=$id video=$source url=$playbackUrl hasAudio=${video?.hasAudio} w=${video?.width} h=${video?.height}"
+        )
+    }
+    return when {
+        playbackUrl != null -> {
+            val width = video?.width ?: previewImage?.width
+            val height = video?.height ?: previewImage?.height
+            RedditPostMedia.Video(
+                url = playbackUrl,
+                hasAudio = video?.hasAudio ?: true,
+                width = width,
+                height = height,
+                durationSeconds = video?.duration
+            )
+        }
         galleryImages.isNotEmpty() -> RedditPostMedia.Gallery(galleryImages)
         resolvedDomain.contains("redgifs", ignoreCase = true) && mediaEmbed?.content != null -> {
             val embedUrl = extractRedGifsEmbedUrl(mediaEmbed.content) ?: destinationUrl.orEmpty()
@@ -427,6 +462,20 @@ private fun RedditPreviewDto.bestImage(): PreviewImageData? {
 }
 
 private fun String?.cleanUrl(): String? = this?.replace("&amp;", "&")?.trim()?.takeIf { it.isNotEmpty() }
+
+private fun buildRedditVideoFallbacks(destinationUrl: String?): List<String> {
+    val baseUrl = destinationUrl.cleanUrl()?.trimEnd('/') ?: return emptyList()
+    val host = runCatching { Uri.parse(baseUrl).host.orEmpty() }.getOrDefault("")
+    if (!host.contains("v.redd.it", ignoreCase = true)) return emptyList()
+    return listOf(
+        "$baseUrl/HLSPlaylist.m3u8",
+        "$baseUrl/DASHPlaylist.mpd",
+        "$baseUrl/DASH_720.mp4",
+        "$baseUrl/DASH_480.mp4",
+        "$baseUrl/DASH_360.mp4",
+        "$baseUrl/CMAF_480.mp4"
+    )
+}
 
 private fun String?.isImageUrl(): Boolean {
     val value = this?.lowercase() ?: return false
