@@ -39,18 +39,33 @@ class RedditFeedViewModel(
         ALL(displayLabel = "All time", apiValue = "all")
     }
 
-    private val availableSubreddits = SubredditCatalog.defaultSubreddits
+    private fun loadFavoriteSubreddits(): MutableList<String> {
+        val stored = appPreferences.getFavoriteSubreddits()
+            .map { normalizeSubreddit(it) }
+            .filter { it.isNotBlank() && !it.equals("all", ignoreCase = true) }
+            .distinctBy { it.lowercase() }
+        val fallback = SubredditCatalog.defaultSubreddits
+            .filterNot { it.equals("all", ignoreCase = true) }
+        return (if (stored.isNotEmpty()) stored else fallback).toMutableList()
+    }
+
+    private var favoriteSubreddits: MutableList<String> = loadFavoriteSubreddits()
+    private var availableSubreddits: MutableList<String> = mutableListOf<String>().apply {
+        add("all")
+        addAll(favoriteSubreddits)
+    }
 
     private val _uiState = MutableStateFlow(
         RedditFeedUiState(
             selectedSubreddit = availableSubreddits.first(),
             selectedSort = FeedSortOption.HOT,
-            selectedTopTimeRange = TopTimeRange.DAY
+            selectedTopTimeRange = TopTimeRange.DAY,
+            favoriteSubreddits = favoriteSubreddits.toList()
         )
     )
     val uiState: StateFlow<RedditFeedUiState> = _uiState.asStateFlow()
 
-    val subredditOptions: List<String> = availableSubreddits
+    var subredditOptions: List<String> = availableSubreddits
     val sortOptions: List<FeedSortOption> = FeedSortOption.values().toList()
     val topTimeRangeOptions: List<TopTimeRange> = TopTimeRange.values().toList()
 
@@ -97,6 +112,10 @@ class RedditFeedViewModel(
             currentSubreddit = savedSubreddit
         }
 
+        if (availableSubreddits.none { it.equals(currentSubreddit, ignoreCase = true) }) {
+            currentSubreddit = availableSubreddits.firstOrNull() ?: "all"
+        }
+
         savedStateHandle.get<String>(KEY_CURRENT_SORT)?.let { sortName ->
             runCatching { FeedSortOption.valueOf(sortName) }
                 .getOrNull()
@@ -112,8 +131,15 @@ class RedditFeedViewModel(
         savedStateHandle.get<ArrayList<String>>(KEY_SUBREDDIT_STACK)
             ?.takeIf { it.isNotEmpty() }
             ?.let { restoredStack ->
+                val filtered = restoredStack.filter { restored ->
+                    availableSubreddits.any { it.equals(restored, ignoreCase = true) }
+                }
                 subredditStack.clear()
-                subredditStack.addAll(restoredStack)
+                if (filtered.isNotEmpty()) {
+                    subredditStack.addAll(filtered)
+                } else {
+                    subredditStack.add(availableSubreddits.first())
+                }
             }
 
         if (!subredditStack.contains(currentSubreddit)) {
@@ -152,7 +178,8 @@ class RedditFeedViewModel(
             state.copy(
                 selectedSubreddit = currentSubreddit,
                 selectedSort = currentSortOption,
-                selectedTopTimeRange = currentTopTimeRange
+                selectedTopTimeRange = currentTopTimeRange,
+                favoriteSubreddits = favoriteSubreddits.toList()
             )
         }
     }
@@ -184,11 +211,82 @@ class RedditFeedViewModel(
         return listOf(sub, sort.apiValue, time).joinToString(":")
     }
 
+    private fun normalizeSubreddit(subreddit: String): String =
+        subreddit.removePrefix("r/").removePrefix("R/").trim().lowercase()
+
     private fun prefetchSubredditIcons() {
         viewModelScope.launch {
             val allSubreddits = availableSubreddits + SubredditCatalog.exploreSubreddits
             subredditRepository.prefetchSubredditIcons(allSubreddits.distinct())
         }
+    }
+
+    fun syncFavoritesFromPreferences() {
+        val stored = loadFavoriteSubreddits()
+        val current = favoriteSubreddits.map { it.lowercase() }
+        val incoming = stored.map { it.lowercase() }
+        if (current == incoming) return
+        applyFavoriteUpdate(stored, persist = false)
+    }
+
+    fun addFavoriteSubreddit(subreddit: String) {
+        val normalized = normalizeSubreddit(subreddit)
+        if (normalized.isBlank() || normalized.equals("all", ignoreCase = true)) return
+        if (favoriteSubreddits.any { it.equals(normalized, ignoreCase = true) }) return
+        val updated = favoriteSubreddits.toMutableList().apply { add(normalized) }
+        applyFavoriteUpdate(updated, persist = true)
+    }
+
+    fun saveFavoriteOrder(newOrder: List<String>) {
+        applyFavoriteUpdate(newOrder, persist = true)
+    }
+
+    private fun applyFavoriteUpdate(newFavorites: List<String>, persist: Boolean) {
+        val sanitized = newFavorites
+            .map { normalizeSubreddit(it) }
+            .filter { it.isNotBlank() && !it.equals("all", ignoreCase = true) }
+            .distinctBy { it.lowercase() }
+            .ifEmpty {
+                SubredditCatalog.defaultSubreddits.filterNot { it.equals("all", ignoreCase = true) }
+            }
+
+        favoriteSubreddits = sanitized.toMutableList()
+        availableSubreddits = mutableListOf<String>().apply {
+            add("all")
+            addAll(favoriteSubreddits)
+        }
+        subredditOptions = availableSubreddits
+
+        favoriteSubreddits.forEach { sub ->
+            subredditSortState.putIfAbsent(
+                sub.lowercase(),
+                SortState(sort = FeedSortOption.HOT, topTimeRange = TopTimeRange.DAY)
+            )
+        }
+
+        if (availableSubreddits.none { it.equals(currentSubreddit, ignoreCase = true) }) {
+            currentSubreddit = availableSubreddits.firstOrNull() ?: "all"
+        }
+
+        if (!subredditStack.contains(currentSubreddit)) {
+            subredditStack.clear()
+            subredditStack.add(currentSubreddit)
+        }
+
+        if (persist) {
+            appPreferences.setFavoriteSubreddits(favoriteSubreddits)
+        }
+
+        persistSelectionState()
+
+        _uiState.update { state ->
+            state.copy(
+                favoriteSubreddits = favoriteSubreddits.toList(),
+                selectedSubreddit = currentSubreddit
+            )
+        }
+
+        prefetchSubredditIcons()
     }
 
     fun updateSideSheetScroll(position: Int) {
@@ -542,7 +640,8 @@ class RedditFeedViewModel(
         val scrollPosition: ScrollPosition? = null,
         val isNavigatingBack: Boolean = false,
         val readPostIds: Set<String> = emptySet(),
-        val hideReadPosts: Boolean = false
+        val hideReadPosts: Boolean = false,
+        val favoriteSubreddits: List<String> = SubredditCatalog.defaultSubreddits.filterNot { it.equals("all", ignoreCase = true) }
     )
 
     fun saveScrollPosition(subreddit: String, firstVisibleItemIndex: Int, firstVisibleItemScrollOffset: Int) {

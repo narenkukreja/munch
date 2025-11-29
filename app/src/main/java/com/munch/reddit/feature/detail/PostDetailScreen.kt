@@ -3,7 +3,6 @@ package com.munch.reddit.feature.detail
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -115,6 +114,7 @@ import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.domain.model.RedditPostMedia
 import com.munch.reddit.R
 import com.munch.reddit.domain.model.RedditComment
+import com.munch.reddit.data.AppPreferences
 import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.feature.feed.MetaInfoColor
 import com.munch.reddit.feature.feed.ModLabelColor
@@ -131,6 +131,8 @@ import coil.compose.AsyncImage
 import com.munch.reddit.feature.shared.LinkifiedText
 import com.munch.reddit.feature.shared.TableAttachmentList
 import com.munch.reddit.feature.shared.RedditPostMediaContent
+import android.content.Intent
+import com.munch.reddit.activity.EditFavoritesActivity
 import com.munch.reddit.feature.shared.SubredditSideSheet
 import com.munch.reddit.feature.shared.SideSheetEdgeSwipeTarget
 import com.munch.reddit.feature.shared.formatCount
@@ -167,6 +169,9 @@ fun PostDetailActivityContent(
     val viewModel: PostDetailViewModel = koinViewModel(parameters = { parametersOf(permalink) })
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val appPreferences = remember { AppPreferences(context) }
+    var favoriteSubreddits by remember { mutableStateOf(appPreferences.getFavoriteSubreddits()) }
+    val subredditOptions = remember(favoriteSubreddits) { listOf("all") + favoriteSubreddits }
     val activity = context as? android.app.Activity
 
     PostDetailScreen(
@@ -224,7 +229,11 @@ fun PostDetailActivityContent(
                 it.startActivity(intent)
             }
         },
-        subredditOptions = SubredditCatalog.defaultSubreddits,
+        subredditOptions = subredditOptions,
+        onSaveFavoriteOrder = { updated ->
+            appPreferences.setFavoriteSubreddits(updated)
+            favoriteSubreddits = appPreferences.getFavoriteSubreddits()
+        },
         viewModel = viewModel
     )
 }
@@ -250,10 +259,12 @@ private fun PostDetailScreen(
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
     subredditOptions: List<String>,
+    onSaveFavoriteOrder: (List<String>) -> Unit = {},
     viewModel: PostDetailViewModel? = null
 ) {
     var showSubredditSheet by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showEditFavorites by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val post = uiState.post
     val mediaShareUrl = remember(post) { post?.media?.shareableUrl() }
@@ -547,8 +558,13 @@ private fun PostDetailScreen(
         subredditIcons = uiState.subredditIcons,
         exploreSubreddits = SubredditCatalog.exploreSubreddits,
         onSettingsClick = onSettingsClick,
+        onEditFavoritesClick = {
+            showSubredditSheet = false
+            context.startActivity(Intent(context, EditFavoritesActivity::class.java))
+        },
         scrollState = sideSheetScrollState
     )
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

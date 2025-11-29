@@ -78,6 +78,7 @@ class FeedActivity : ComponentActivity() {
                         if (updatedTextSize != commentTextSize) {
                             commentTextSize = updatedTextSize
                         }
+                        viewModel.syncFavoritesFromPreferences()
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)

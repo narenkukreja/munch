@@ -115,6 +115,12 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.MunchForReddit" />
 
+        <activity
+            android:name=".activity.EditFavoritesActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.MunchForReddit" />
+
     </application>
 
 </manifest>

@@ -128,6 +128,8 @@ import com.munch.reddit.feature.shared.FloatingToolbar
 import com.munch.reddit.feature.shared.FloatingToolbarButton
 import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.feature.shared.RedditPostMediaContent
+import android.content.Intent
+import com.munch.reddit.activity.EditFavoritesActivity
 import com.munch.reddit.feature.shared.SubredditSideSheet
 import com.munch.reddit.feature.shared.SideSheetEdgeSwipeTarget
 import com.munch.reddit.feature.shared.formatCount
@@ -193,6 +195,7 @@ fun RedditFeedScreen(
     val sideSheetScrollState = remember(viewModel) {
         ScrollState(viewModel?.getSideSheetScroll() ?: 0)
     }
+    val context = LocalContext.current
 
     LaunchedEffect(uiState.selectedSubreddit, uiState.scrollPosition) {
         val targetScroll = uiState.scrollPosition
@@ -345,6 +348,10 @@ fun RedditFeedScreen(
                 subredditIcons = uiState.subredditIcons,
                 exploreSubreddits = SubredditCatalog.exploreSubreddits,
                 onSettingsClick = onSettingsClick,
+                onEditFavoritesClick = {
+                    showSubredditSheet = false
+                    context.startActivity(Intent(context, EditFavoritesActivity::class.java))
+                },
                 scrollState = sideSheetScrollState
             )
 

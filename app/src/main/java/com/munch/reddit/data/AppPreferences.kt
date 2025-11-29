@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.munch.reddit.theme.FeedThemePreset
 import com.munch.reddit.theme.PostCardStyle
 import com.munch.reddit.theme.TextSizeDefaults
+import com.munch.reddit.domain.SubredditCatalog
 
 class AppPreferences(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(
@@ -82,6 +83,32 @@ class AppPreferences(context: Context) {
 
     private fun collapsedCommentsKey(postId: String): String = "collapsed_comments_$postId"
 
+    fun getFavoriteSubreddits(): List<String> {
+        val stored = prefs.getString(KEY_FAVORITE_SUBREDDITS, null)
+        val defaultFavorites = SubredditCatalog.defaultSubreddits.filterNot { it.equals("all", ignoreCase = true) }
+        val parsed = stored
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.map { normalizeSubreddit(it) }
+            ?.filter { it.isNotBlank() && !it.equals("all", ignoreCase = true) }
+            ?.distinctBy { it.lowercase() }
+            ?.toList()
+            ?: emptyList()
+        return if (parsed.isNotEmpty()) parsed else defaultFavorites
+    }
+
+    fun setFavoriteSubreddits(subreddits: List<String>) {
+        val sanitized = subreddits
+            .map { normalizeSubreddit(it) }
+            .filter { it.isNotBlank() && !it.equals("all", ignoreCase = true) }
+            .distinctBy { it.lowercase() }
+        prefs.edit().putString(KEY_FAVORITE_SUBREDDITS, sanitized.joinToString(",")).apply()
+    }
+
+    private fun normalizeSubreddit(subreddit: String): String =
+        subreddit.removePrefix("r/").removePrefix("R/").trim().lowercase()
+
     companion object {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_SELECTED_THEME = "selected_theme"
@@ -89,5 +116,6 @@ class AppPreferences(context: Context) {
         private const val KEY_TEXT_SCALE = "text_scale"
         private const val KEY_COMMENT_TEXT_SIZE = "comment_text_size"
         private const val KEY_READ_POST_IDS = "read_post_ids"
+        private const val KEY_FAVORITE_SUBREDDITS = "favorite_subreddits"
     }
 }

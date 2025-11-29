@@ -30,6 +30,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -58,6 +59,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
 import com.munch.reddit.feature.feed.PostBackgroundColor
 import com.munch.reddit.feature.feed.SubredditColor
+import com.munch.reddit.feature.feed.MetaInfoColor
 import com.munch.reddit.feature.feed.TitleColor
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import com.munch.reddit.ui.theme.MaterialSpacing
@@ -78,6 +80,7 @@ fun SubredditSideSheet(
     subredditIcons: Map<String, String?> = emptyMap(),
     exploreSubreddits: List<String> = emptyList(),
     onSettingsClick: () -> Unit = {},
+    onEditFavoritesClick: () -> Unit = {},
     scrollState: ScrollState? = null
 ) {
     val sheetScrollState = scrollState ?: rememberScrollState()
@@ -300,6 +303,14 @@ fun SubredditSideSheet(
                                         fallbackColor = favoritesResult.colors[subreddit]
                                     )
                                 }
+
+                                EditFavoritesItem(
+                                    spacing = spacing,
+                                    onClick = {
+                                        onEditFavoritesClick()
+                                        onDismissRequest()
+                                    }
+                                )
                             }
 
                             // Explore section
@@ -467,6 +478,45 @@ private data class FallbackColorComputation(
 private fun hueDistance(a: Float, b: Float): Float {
     val diff = abs(a - b) % 360f
     return min(diff, 360f - diff)
+}
+
+@Composable
+private fun EditFavoritesItem(
+    onClick: () -> Unit,
+    spacing: com.munch.reddit.ui.theme.MunchSpacing
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable { onClick() }
+            .padding(
+                horizontal = spacing.sm,
+                vertical = spacing.xs
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = "Edit favorites",
+                tint = SubredditColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Text(
+            text = "Edit Favorites",
+            style = MaterialTheme.typography.titleMedium,
+            color = TitleColor,
+            fontWeight = FontWeight.Normal
+        )
+    }
 }
 
 @Composable
