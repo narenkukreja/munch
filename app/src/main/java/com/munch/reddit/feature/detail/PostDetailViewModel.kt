@@ -530,7 +530,8 @@ class PostDetailViewModel(
     }
 
     private fun shouldApplyCollapsedHistory(post: RedditPost, sort: String): Boolean {
-        return !(post.isStickied && sort.equals("new", ignoreCase = true))
+        // Allow collapsed/read comment history for all posts, including stickied threads
+        return true
     }
 
     private fun resolvePostKey(post: RedditPost): String = post.id.ifBlank { post.permalink }
