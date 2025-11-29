@@ -544,7 +544,6 @@ fun RedditPostYouTube(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
-            .clip(RoundedCornerShape(12.dp))
             .background(SpacerBackgroundColor)
             .clickable(enabled = onYoutubeClick != null) {
                 onYoutubeClick?.invoke(media.videoId, media.watchUrl)
