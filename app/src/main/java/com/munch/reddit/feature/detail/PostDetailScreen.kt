@@ -1144,6 +1144,34 @@ private fun CommentItem(
             else -> "Replies hidden (${formatCount(node.replyCount)} replies)"
         }
     }
+    val expandEnterTransition = remember {
+        fadeIn(animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)) +
+            expandVertically(
+                expandFrom = Alignment.Top,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+            )
+    }
+    val expandExitTransition = remember {
+        fadeOut(animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing)) +
+            shrinkVertically(
+                shrinkTowards = Alignment.Top,
+                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+            )
+    }
+    val collapsedEnterTransition = remember {
+        fadeIn(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)) +
+            expandVertically(
+                expandFrom = Alignment.Top,
+                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+            )
+    }
+    val collapsedExitTransition = remember {
+        fadeOut(animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)) +
+            shrinkVertically(
+                shrinkTowards = Alignment.Top,
+                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+            )
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1174,12 +1202,6 @@ private fun CommentItem(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = if (node.depth > 0) spacing.xs else 0.dp)
-                .animateContentSize(
-                    animationSpec = tween(
-                        durationMillis = 320,
-                        easing = FastOutSlowInEasing
-                    )
-                )
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1330,10 +1352,8 @@ private fun CommentItem(
             }
             AnimatedVisibility(
                 visible = !node.isCollapsed,
-                enter = fadeIn(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)) +
-                    expandVertically(animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing)),
-                exit = fadeOut(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)) +
-                    shrinkVertically(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)),
+                enter = expandEnterTransition,
+                exit = expandExitTransition,
                 label = "comment_expand_transition"
             ) {
                 LinkifiedText(
@@ -1355,10 +1375,8 @@ private fun CommentItem(
             }
             AnimatedVisibility(
                 visible = node.isCollapsed,
-                enter = fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)) +
-                    expandVertically(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)),
-                exit = fadeOut(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) +
-                    shrinkVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
+                enter = collapsedEnterTransition,
+                exit = collapsedExitTransition,
                 label = "comment_collapse_transition"
             ) {
                 val collapsedInteraction = remember { MutableInteractionSource() }
