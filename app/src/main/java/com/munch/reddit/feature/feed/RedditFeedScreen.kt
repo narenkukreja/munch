@@ -456,7 +456,7 @@ private fun RedditTopBar(
             ) { animatedTitle ->
                 Text(
                     text = animatedTitle,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineSmall,
                     color = TitleColor,
                     modifier = Modifier.clickable(role = Role.Button, onClick = onTap)
                 )
