@@ -964,6 +964,7 @@ private fun PostHeader(
                         color = TitleColor.copy(alpha = 0.9f),
                         linkColor = SubredditColor,
                         quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        quoteStripeColor = Color(0xFFFFD54F),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = spacing.sm),
@@ -1363,6 +1364,7 @@ private fun CommentItem(
                     color = TitleColor.copy(alpha = 0.9f),
                     linkColor = SubredditColor,
                     quoteColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    quoteStripeColor = Color(0xFFFFD54F),
                     modifier = Modifier.padding(top = spacing.xs, bottom = contentBottomPadding),
                     onLinkClick = onOpenLink,
                     onImageClick = onOpenImage,

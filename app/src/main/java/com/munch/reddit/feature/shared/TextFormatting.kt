@@ -15,25 +15,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.core.text.HtmlCompat
 
 private const val LINK_TAG = "link"
 private const val SUBREDDIT_TAG = "subreddit"
 private const val IMAGE_TAG = "image"
+private const val QUOTE_TAG = "quote"
 private val LinkRegex = Regex("https?://[^\\s]+")
 private val SubredditRegex = Regex("(?<![A-Za-z0-9_])r/[A-Za-z0-9_]+", RegexOption.IGNORE_CASE)
 private val UserRegex = Regex("(?<![A-Za-z0-9_])u/[A-Za-z0-9_-]+", RegexOption.IGNORE_CASE)
 private val TrailingUrlDelimiters = charArrayOf(')', ']', '}', '>', ',', '.', ';', ':', '"', '\'')
+private val QuoteStripeWidth = 3.dp
+private val QuoteStripeGap = 8.dp
 
 private fun sanitizeLinkValue(raw: String): String {
     var end = raw.length
@@ -114,17 +123,34 @@ fun buildLinkAnnotatedString(
     raw: String,
     linkColor: Color,
     allowSubredditClick: Boolean,
-    quoteColor: Color?
+    quoteColor: Color?,
+    quoteIndent: androidx.compose.ui.unit.TextUnit?
 ): AnnotatedString {
     val processed = preprocessContent(raw)
     val content = processed.text
     val builder = AnnotatedString.Builder()
     builder.append(content)
 
-    if (quoteColor != null) {
+    if (quoteColor != null || quoteIndent != null) {
         processed.quoteRanges.forEach { (start, end) ->
             if (start >= 0 && end <= content.length && start < end) {
-                builder.addStyle(SpanStyle(color = quoteColor), start, end)
+                quoteColor?.let { color ->
+                    builder.addStyle(SpanStyle(color = color), start, end)
+                }
+                if (quoteIndent != null) {
+                    builder.addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, end)
+                    builder.addStyle(
+                        ParagraphStyle(textIndent = TextIndent(firstLine = quoteIndent, restLine = quoteIndent)),
+                        start,
+                        end
+                    )
+                    builder.addStringAnnotation(
+                        tag = QUOTE_TAG,
+                        annotation = "quote",
+                        start = start,
+                        end = end
+                    )
+                }
             }
         }
     }
@@ -183,7 +209,8 @@ private fun buildLinkAnnotatedStringFromHtml(
     fallbackText: String,
     linkColor: Color,
     allowSubredditClick: Boolean,
-    quoteColor: Color?
+    quoteColor: Color?,
+    quoteIndent: androidx.compose.ui.unit.TextUnit?
 ): AnnotatedString {
     val spanned = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_LEGACY)
     val content = spanned.toString().ifBlank { fallbackText }
@@ -191,7 +218,7 @@ private fun buildLinkAnnotatedStringFromHtml(
         return AnnotatedString.Builder().toAnnotatedString()
     }
     if (spanned.length == 0) {
-        return buildLinkAnnotatedString(content, linkColor, allowSubredditClick, quoteColor)
+        return buildLinkAnnotatedString(content, linkColor, allowSubredditClick, quoteColor, quoteIndent)
     }
 
     val imageSpans = spanned.getSpans(0, spanned.length, ImageSpan::class.java)
@@ -276,9 +303,43 @@ private fun buildLinkAnnotatedStringFromHtml(
         }
     }
 
-    if (quoteColor != null) {
+    fun applyParagraphStyle(rangeStart: Int, rangeEnd: Int, style: ParagraphStyle) {
+        val start = mapIndex(rangeStart)
+        val end = mapIndex(rangeEnd)
+        if (start < end) {
+            builder.addStyle(style, start, end)
+        }
+    }
+
+    fun applyQuoteAnnotation(rangeStart: Int, rangeEnd: Int) {
+        val start = mapIndex(rangeStart)
+        val end = mapIndex(rangeEnd)
+        if (start < end) {
+            builder.addStringAnnotation(
+                tag = QUOTE_TAG,
+                annotation = "quote",
+                start = start,
+                end = end
+            )
+        }
+    }
+
+    if (quoteColor != null || quoteIndent != null) {
         spanned.getSpans(0, spanned.length, QuoteSpan::class.java).forEach { span ->
-            applyStyle(spanned.getSpanStart(span), spanned.getSpanEnd(span), SpanStyle(color = quoteColor))
+            val start = spanned.getSpanStart(span)
+            val end = spanned.getSpanEnd(span)
+            quoteColor?.let { color ->
+                applyStyle(start, end, SpanStyle(color = color))
+            }
+            if (quoteIndent != null) {
+                applyStyle(start, end, SpanStyle(fontStyle = FontStyle.Italic))
+                applyParagraphStyle(
+                    start,
+                    end,
+                    ParagraphStyle(textIndent = TextIndent(firstLine = quoteIndent, restLine = quoteIndent))
+                )
+                applyQuoteAnnotation(start, end)
+            }
         }
     }
 
@@ -377,6 +438,7 @@ fun LinkifiedText(
     color: Color,
     linkColor: Color,
     quoteColor: Color? = null,
+    quoteStripeColor: Color? = null,
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
     onLinkClick: ((String) -> Unit)? = null,
@@ -385,8 +447,10 @@ fun LinkifiedText(
     onTextClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null
 ) {
+    val density = LocalDensity.current
+    val quoteIndent = quoteStripeColor?.let { with(density) { (QuoteStripeWidth + QuoteStripeGap).toSp() } }
     val allowSubredditClick = onSubredditClick != null
-    val annotated = remember(text, htmlText, linkColor, allowSubredditClick, quoteColor) {
+    val annotated = remember(text, htmlText, linkColor, allowSubredditClick, quoteColor, quoteIndent) {
         val sanitizedHtml = htmlText?.takeIf { it.isNotBlank() }
         val result = if (sanitizedHtml != null) {
             buildLinkAnnotatedStringFromHtml(
@@ -394,14 +458,50 @@ fun LinkifiedText(
                 fallbackText = text,
                 linkColor = linkColor,
                 allowSubredditClick = allowSubredditClick,
-                quoteColor = quoteColor
+                quoteColor = quoteColor,
+                quoteIndent = quoteIndent
             )
         } else {
-            buildLinkAnnotatedString(text, linkColor, allowSubredditClick, quoteColor)
+            buildLinkAnnotatedString(text, linkColor, allowSubredditClick, quoteColor, quoteIndent)
         }
         result.trimTrailingWhitespace()
     }
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val quoteAnnotations = remember(annotated, quoteStripeColor) {
+        if (quoteStripeColor != null) {
+            annotated.getStringAnnotations(QUOTE_TAG, 0, annotated.length)
+        } else {
+            emptyList()
+        }
+    }
+    val quoteStripeModifier = if (quoteStripeColor != null && quoteAnnotations.isNotEmpty()) {
+        Modifier.drawBehind {
+            val layout = layoutResult ?: return@drawBehind
+            val stripeWidthPx = QuoteStripeWidth.toPx()
+            val stripeCenterX = stripeWidthPx / 2f
+            val quoteLines = HashSet<Int>(quoteAnnotations.size * 2)
+            quoteAnnotations.forEach { range ->
+                val start = range.start.coerceIn(0, annotated.length)
+                val endExclusive = range.end.coerceIn(start, annotated.length)
+                val endInclusive = (endExclusive - 1).coerceAtLeast(start)
+                val startLine = layout.getLineForOffset(start)
+                val endLine = layout.getLineForOffset(endInclusive)
+                for (line in startLine..endLine) quoteLines.add(line)
+            }
+            quoteLines.forEach { line ->
+                val top = layout.getLineTop(line)
+                val bottom = layout.getLineBottom(line)
+                drawLine(
+                    color = quoteStripeColor,
+                    start = Offset(stripeCenterX, top),
+                    end = Offset(stripeCenterX, bottom),
+                    strokeWidth = stripeWidthPx
+                )
+            }
+        }
+    } else {
+        Modifier
+    }
     val pointerModifier = if (onLinkClick != null || onImageClick != null || onSubredditClick != null || onTextClick != null || onLongPress != null) {
         Modifier.pointerInput(annotated, onLinkClick, onImageClick, onSubredditClick, onTextClick, onLongPress) {
             detectTapGestures(
@@ -444,7 +544,7 @@ fun LinkifiedText(
 
     BasicText(
         text = annotated,
-        modifier = modifier.then(pointerModifier),
+        modifier = modifier.then(quoteStripeModifier).then(pointerModifier),
         style = style.copy(color = color),
         maxLines = maxLines,
         overflow = overflow,

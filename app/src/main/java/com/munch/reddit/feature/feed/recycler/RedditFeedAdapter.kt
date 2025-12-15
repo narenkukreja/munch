@@ -1,19 +1,26 @@
 package com.munch.reddit.feature.feed.recycler
 
 import android.content.res.ColorStateList
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.text.Layout
 import android.text.Selection
 import android.text.Spannable
 import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.ImageSpan
+import android.text.style.LeadingMarginSpan
+import android.text.style.MetricAffectingSpan
+import android.text.style.QuoteSpan
 import android.text.style.StyleSpan
 import android.text.style.URLSpan
 import android.util.Log
@@ -479,6 +486,7 @@ class RedditFeedAdapter(
             linkifyRawUrls(builder, linkColor)
             styleSubredditMentions(builder, linkColor)
             styleUserMentions(builder, linkColor)
+            styleQuoteSpans(builder, QuoteStripeColorInt, view.resources.displayMetrics.density)
 
             return builder
         }
@@ -1078,6 +1086,80 @@ class RedditFeedAdapter(
         private val SubredditRegex = Regex("(?<![A-Za-z0-9_])r/[A-Za-z0-9_]+", RegexOption.IGNORE_CASE)
         private val UserRegex = Regex("(?<![A-Za-z0-9_])u/[A-Za-z0-9_-]+", RegexOption.IGNORE_CASE)
         private val TrailingUrlDelimiters = charArrayOf(')', ']', '}', '>', ',', '.', ';', ':', '\"', '\'')
+        private val QuoteStripeColorInt = 0xFFFFD54F.toInt()
+        private const val QuoteStripeWidthDp = 3f
+        private const val QuoteStripeGapDp = 8f
+        private const val QuoteItalicSpanFlags = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE or (255 shl Spanned.SPAN_PRIORITY_SHIFT)
+
+        private fun styleQuoteSpans(builder: SpannableStringBuilder, stripeColor: Int, density: Float) {
+            val quoteSpans = builder.getSpans(0, builder.length, QuoteSpan::class.java)
+            if (quoteSpans.isEmpty()) return
+
+            val stripeWidthPx = (QuoteStripeWidthDp * density).roundToInt().coerceAtLeast(1)
+            val gapWidthPx = (QuoteStripeGapDp * density).roundToInt().coerceAtLeast(0)
+
+            quoteSpans.forEach { span ->
+                val start = builder.getSpanStart(span)
+                val end = builder.getSpanEnd(span)
+                builder.removeSpan(span)
+                if (start < 0 || end <= start) return@forEach
+
+                builder.setSpan(
+                    QuoteStripeSpan(color = stripeColor, stripeWidthPx = stripeWidthPx, gapWidthPx = gapWidthPx),
+                    start,
+                    end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                builder.setSpan(MergeItalicSpan(), start, end, QuoteItalicSpanFlags)
+            }
+        }
+
+        private class QuoteStripeSpan(
+            private val color: Int,
+            private val stripeWidthPx: Int,
+            private val gapWidthPx: Int
+        ) : LeadingMarginSpan {
+            override fun getLeadingMargin(first: Boolean): Int = stripeWidthPx + gapWidthPx
+
+            override fun drawLeadingMargin(
+                c: Canvas,
+                p: Paint,
+                x: Int,
+                dir: Int,
+                top: Int,
+                baseline: Int,
+                bottom: Int,
+                text: CharSequence,
+                start: Int,
+                end: Int,
+                first: Boolean,
+                layout: Layout
+            ) {
+                val oldStyle = p.style
+                val oldColor = p.color
+                p.style = Paint.Style.FILL
+                p.color = color
+
+                val left = x.toFloat()
+                val right = (x + dir * stripeWidthPx).toFloat()
+                c.drawRect(minOf(left, right), top.toFloat(), maxOf(left, right), bottom.toFloat(), p)
+
+                p.style = oldStyle
+                p.color = oldColor
+            }
+        }
+
+        private class MergeItalicSpan : MetricAffectingSpan() {
+            override fun updateDrawState(tp: TextPaint) = apply(tp)
+
+            override fun updateMeasureState(tp: TextPaint) = apply(tp)
+
+            private fun apply(tp: TextPaint) {
+                val current = tp.typeface
+                val style = current?.style ?: 0
+                tp.typeface = Typeface.create(current, style or Typeface.ITALIC)
+            }
+        }
 
         private fun sanitizeLinkValue(raw: String): String {
             var end = raw.length
