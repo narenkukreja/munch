@@ -358,6 +358,7 @@ class RedditFeedAdapter(
             if (post.media !is RedditPostMedia.None) {
                 body.isVisible = false
                 body.text = null
+                body.setOnClickListener(null)
                 bindTables(emptyList(), plainTitle, colors, hasBodyText = false)
                 return
             }
@@ -375,8 +376,10 @@ class RedditFeedAdapter(
                     htmlText = sanitizedHtml,
                     linkColor = colors?.subreddit ?: Color.CYAN
                 )
+                body.setOnClickListener { onPostSelected(post) }
             } else {
                 body.text = null
+                body.setOnClickListener(null)
             }
 
             bindTables(parsedTables, plainTitle, colors, hasBodyText)

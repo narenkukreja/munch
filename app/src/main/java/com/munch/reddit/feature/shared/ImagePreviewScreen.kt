@@ -161,8 +161,7 @@ fun ImagePreviewScreen(
                             shareImage(context, currentImage)
                         }
                     },
-                    iconTint = SubredditColor,
-                    iconSize = 24.dp
+                    iconTint = SubredditColor
                 ),
                 FloatingToolbarButton(
                     icon = Icons.Filled.Download,
@@ -172,15 +171,13 @@ fun ImagePreviewScreen(
                             downloadImage(context, currentImage)
                         }
                     },
-                    iconTint = SubredditColor,
-                    iconSize = 24.dp
+                    iconTint = SubredditColor
                 ),
                 FloatingToolbarButton(
                     icon = Icons.Filled.Close,
                     contentDescription = "Close",
                     onClick = { onBackClick() },
-                    iconTint = SubredditColor,
-                    iconSize = 24.dp
+                    iconTint = SubredditColor
                 )
             )
         )
