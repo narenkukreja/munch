@@ -60,6 +60,7 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Menu
@@ -729,7 +730,11 @@ private fun PostList(
             metaInfo = MetaInfoColor.toArgb(),
             pinnedLabel = PinnedLabelColor.toArgb(),
             error = MaterialTheme.colorScheme.error.toArgb(),
-            onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+            onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
+            tableCardBackground = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp).toArgb(),
+            tableCardTitle = MaterialTheme.colorScheme.onSurface.toArgb(),
+            tableChipBackground = MaterialTheme.colorScheme.secondaryContainer.toArgb(),
+            tableChipContent = MaterialTheme.colorScheme.onSecondaryContainer.toArgb()
         )
 
         val rows = remember(visiblePosts, readPostIds, selectedSubreddit, isAppending, canLoadMore) {

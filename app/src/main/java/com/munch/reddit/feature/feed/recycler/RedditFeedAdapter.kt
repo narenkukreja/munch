@@ -44,6 +44,7 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.text.HtmlCompat
 import coil.load
+import com.munch.reddit.activity.TableViewerActivity
 import com.munch.reddit.data.remote.StreamableApiService
 import com.munch.reddit.R
 import com.munch.reddit.domain.model.RedditPost
@@ -52,6 +53,7 @@ import com.munch.reddit.feature.shared.formatCount
 import com.munch.reddit.feature.shared.formatRelativeTime
 import com.munch.reddit.feature.shared.parseHtmlText
 import com.munch.reddit.feature.shared.parseTablesFromHtml
+import com.munch.reddit.feature.shared.RedditHtmlTable
 import com.munch.reddit.feature.shared.stripTablesFromHtml
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -164,6 +166,9 @@ class RedditFeedAdapter(
         private val badgeNsfw: TextView = view.findViewById(R.id.badge_nsfw)
         private val badgePinned: TextView = view.findViewById(R.id.badge_pinned)
         private val body: TextView = view.findViewById(R.id.post_body)
+        private val tablesSection: LinearLayout = view.findViewById(R.id.post_tables_section)
+        private val tablesHeader: TextView = view.findViewById(R.id.post_tables_header)
+        private val tablesList: LinearLayout = view.findViewById(R.id.post_tables_list)
 
         private val bottomLabel: TextView = view.findViewById(R.id.post_bottom_label)
         private val metaTimeText: TextView = view.findViewById(R.id.meta_time_text)
@@ -274,7 +279,8 @@ class RedditFeedAdapter(
             }
             val bottomText = if (isGlobalFeed) subredditLabel else "u/${post.author}"
 
-            title.text = parseHtmlText(post.title)
+            val plainTitle = parseHtmlText(post.title)
+            title.text = plainTitle
 
             val titleColor = colors?.title ?: Color.WHITE
             title.setTextColor(titleColor)
@@ -324,33 +330,113 @@ class RedditFeedAdapter(
             metaCommentsText.text = formatCount(post.commentCount)
             metaVotesText.text = formatCount(post.score)
 
-            bindBody(post, colors, titleColor)
+            bindBody(post, colors, titleColor, plainTitle)
             bindMedia(item, colors, isGlobalFeed, subredditLabel, displayDomain)
         }
 
-        private fun bindBody(post: RedditPost, colors: FeedColors?, titleColor: Int) {
+        private fun bindBody(post: RedditPost, colors: FeedColors?, titleColor: Int, plainTitle: String) {
             if (post.media !is RedditPostMedia.None) {
                 body.isVisible = false
                 body.text = null
+                bindTables(emptyList(), plainTitle, colors, hasBodyText = false)
                 return
             }
 
             val parsedTables = parseTablesFromHtml(post.selfTextHtml)
             val sanitizedHtml = if (parsedTables.isNotEmpty()) stripTablesFromHtml(post.selfTextHtml) else post.selfTextHtml
             val bodyText = sanitizedHtml?.let { parseHtmlText(it).trim() } ?: post.selfText
-            if (bodyText.isBlank()) {
-                body.isVisible = false
+            val hasBodyText = bodyText.isNotBlank()
+
+            body.isVisible = hasBodyText
+            if (hasBodyText) {
+                body.setTextColor(withAlpha(titleColor, 0.9f))
+                body.text = buildBodyPreviewText(
+                    plainText = bodyText,
+                    htmlText = sanitizedHtml,
+                    linkColor = colors?.subreddit ?: Color.CYAN
+                )
+            } else {
                 body.text = null
-                return
             }
 
-            body.isVisible = true
-            body.setTextColor(withAlpha(titleColor, 0.9f))
-            body.text = buildBodyPreviewText(
-                plainText = bodyText,
-                htmlText = sanitizedHtml,
-                linkColor = colors?.subreddit ?: Color.CYAN
-            )
+            bindTables(parsedTables, plainTitle, colors, hasBodyText)
+        }
+
+        private fun bindTables(
+            tables: List<RedditHtmlTable>,
+            plainTitle: String,
+            colors: FeedColors?,
+            hasBodyText: Boolean
+        ) {
+            tablesList.removeAllViews()
+            tablesSection.isVisible = tables.isNotEmpty()
+            if (tables.isEmpty()) return
+
+            val headerText = if (tables.size == 1) "Contains a table" else "Contains tables"
+            tablesHeader.text = headerText
+            tablesHeader.setTextColor(colors?.onSurfaceVariant ?: Color.LTGRAY)
+
+            val horizontalPadding = view.resources.getDimensionPixelSize(R.dimen.spacing_lg)
+            val verticalPaddingRes = if (hasBodyText) R.dimen.spacing_xs else R.dimen.spacing_sm
+            val verticalPadding = view.resources.getDimensionPixelSize(verticalPaddingRes)
+            tablesSection.setPaddingRelative(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+
+            val inflater = LayoutInflater.from(view.context)
+            val cardBackground = colors?.tableCardBackground ?: Color.DKGRAY
+            val cardTitleColor = colors?.tableCardTitle ?: (colors?.title ?: Color.WHITE)
+            val previewColor = colors?.onSurfaceVariant ?: Color.LTGRAY
+            val chipBackground = colors?.tableChipBackground ?: (colors?.subreddit ?: Color.CYAN)
+            val chipContent = colors?.tableChipContent ?: cardTitleColor
+
+            tables.forEachIndexed { index, table ->
+                val row = inflater.inflate(R.layout.item_post_table_attachment, tablesList, false)
+                val title = row.findViewById<TextView>(R.id.table_attachment_title)
+                val preview = row.findViewById<TextView>(R.id.table_attachment_preview)
+                val chip = row.findViewById<View>(R.id.table_attachment_chip)
+                val chipIcon = row.findViewById<ImageView>(R.id.table_attachment_chip_icon)
+                val chipLabel = row.findViewById<TextView>(R.id.table_attachment_chip_label)
+
+                row.backgroundTintList = ColorStateList.valueOf(cardBackground)
+                title.text = table.displayName(index)
+                title.setTextColor(cardTitleColor)
+
+                val previewText = buildTablePreview(table)
+                preview.isVisible = previewText.isNotEmpty()
+                preview.text = previewText
+                preview.setTextColor(previewColor)
+
+                chip.backgroundTintList = ColorStateList.valueOf(chipBackground)
+                chipIcon.setColorFilter(chipContent)
+                chipLabel.setTextColor(chipContent)
+
+                val click: (View) -> Unit = {
+                    val intent = TableViewerActivity.createIntent(
+                        context = view.context,
+                        postTitle = plainTitle,
+                        tables = tables,
+                        startIndex = index
+                    )
+                    view.context.startActivity(intent)
+                }
+                row.setOnClickListener(click)
+                chip.setOnClickListener(click)
+
+                if (row.layoutParams is ViewGroup.MarginLayoutParams) {
+                    val margin = view.resources.getDimensionPixelSize(R.dimen.spacing_sm)
+                    (row.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin =
+                        if (index == tables.lastIndex) 0 else margin
+                }
+                tablesList.addView(row)
+            }
+        }
+
+        private fun buildTablePreview(table: RedditHtmlTable): String {
+            val headerPreview = table.header.filter { it.isNotBlank() }.take(4)
+            if (headerPreview.isNotEmpty()) {
+                return headerPreview.joinToString(" • ")
+            }
+            val firstRow = table.rows.firstOrNull { row -> row.any { it.isNotBlank() } } ?: return ""
+            return firstRow.filter { it.isNotBlank() }.take(4).joinToString(" • ")
         }
 
         private fun buildBodyPreviewText(
