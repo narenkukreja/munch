@@ -9,6 +9,7 @@ data class FeedColors(
     val pinnedLabel: Int,
     val error: Int,
     val onSurfaceVariant: Int,
+    val outlineVariant: Int,
     val tableCardBackground: Int,
     val tableCardTitle: Int,
     val tableChipBackground: Int,

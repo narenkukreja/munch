@@ -731,6 +731,7 @@ private fun PostList(
             pinnedLabel = PinnedLabelColor.toArgb(),
             error = MaterialTheme.colorScheme.error.toArgb(),
             onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
+            outlineVariant = MaterialTheme.colorScheme.outlineVariant.toArgb(),
             tableCardBackground = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp).toArgb(),
             tableCardTitle = MaterialTheme.colorScheme.onSurface.toArgb(),
             tableChipBackground = MaterialTheme.colorScheme.secondaryContainer.toArgb(),

@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -37,6 +38,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.core.widget.ImageViewCompat
 import androidx.core.view.isVisible
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -417,6 +419,8 @@ class RedditFeedAdapter(
             val previewColor = colors?.onSurfaceVariant ?: Color.LTGRAY
             val chipBackground = colors?.tableChipBackground ?: (colors?.subreddit ?: Color.CYAN)
             val chipContent = colors?.tableChipContent ?: cardTitleColor
+            val chipOutline = colors?.outlineVariant ?: previewColor
+            val chipStrokeWidthPx = (view.resources.displayMetrics.density * 1f).roundToInt().coerceAtLeast(1)
 
             tables.forEachIndexed { index, table ->
                 val row = inflater.inflate(R.layout.item_post_table_attachment, tablesList, false)
@@ -435,8 +439,13 @@ class RedditFeedAdapter(
                 preview.text = previewText
                 preview.setTextColor(previewColor)
 
-                chip.backgroundTintList = ColorStateList.valueOf(chipBackground)
-                chipIcon.setColorFilter(chipContent)
+                (chip.background?.mutate() as? GradientDrawable)?.let { drawable ->
+                    drawable.setColor(chipBackground)
+                    drawable.setStroke(chipStrokeWidthPx, chipOutline)
+                } ?: run {
+                    chip.backgroundTintList = ColorStateList.valueOf(chipBackground)
+                }
+                ImageViewCompat.setImageTintList(chipIcon, ColorStateList.valueOf(chipContent))
                 chipLabel.setTextColor(chipContent)
 
                 val click: (View) -> Unit = {
