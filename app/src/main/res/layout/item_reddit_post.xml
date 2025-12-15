@@ -28,11 +28,9 @@
                 android:id="@+id/post_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
                 android:fontFamily="@font/sfprobold"
                 android:includeFontPadding="false"
                 android:letterSpacing="0.0056"
-                android:maxLines="4"
                 android:textSize="18sp" />
 
             <LinearLayout
