@@ -26,6 +26,9 @@ class FeedSwipeToDismissCallback(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
+        val disallowSwipe = (viewHolder.itemView.getTag(R.id.tag_feed_disallow_swipe) as? Boolean) == true
+        if (disallowSwipe) return 0
+
         val position = viewHolder.bindingAdapterPosition
         if (position == RecyclerView.NO_POSITION) return 0
         if (!canSwipe(position)) return 0

@@ -231,6 +231,10 @@ class RedditFeedAdapter(
             videoSeekBar.max = 1000
             body.movementMethod = FeedLinkMovementMethod
             body.highlightColor = Color.TRANSPARENT
+
+            setDisallowSwipeOnTouch(videoSeekBar)
+            setDisallowSwipeOnTouch(galleryRecycler)
+
             galleryRecycler.apply {
                 layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
                 adapter = galleryAdapter
@@ -261,6 +265,22 @@ class RedditFeedAdapter(
                     isScrubbing = false
                 }
             })
+        }
+
+        private fun setDisallowSwipeOnTouch(target: View) {
+            target.setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        root.setTag(R.id.tag_feed_disallow_swipe, true)
+                        root.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        root.setTag(R.id.tag_feed_disallow_swipe, false)
+                        root.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            }
         }
 
         fun bind(item: FeedRow.Post) {
@@ -995,6 +1015,8 @@ class RedditFeedAdapter(
         private fun resetMedia() {
             mediaJob?.cancel()
             mediaJob = null
+
+            root.setTag(R.id.tag_feed_disallow_swipe, false)
 
             mediaImage.isVisible = false
             mediaLinkContainer.isVisible = false
