@@ -37,10 +37,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -93,6 +91,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.Lifecycle
@@ -122,7 +121,9 @@ import com.munch.reddit.domain.model.RedditPostMedia
 import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.R
 import android.widget.Toast
+import android.view.View
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.toArgb
 import org.koin.androidx.compose.koinViewModel
 import com.munch.reddit.feature.shared.FloatingToolbar
 import com.munch.reddit.feature.shared.FloatingToolbarButton
@@ -143,10 +144,21 @@ import com.munch.reddit.feature.shared.openLinkInCustomTab
 import com.munch.reddit.ui.theme.MaterialSpacing
 import com.munch.reddit.ui.theme.MunchForRedditTheme
 import com.munch.reddit.theme.PostCardStyle
+import com.munch.reddit.feature.feed.recycler.FeedColors
+import com.munch.reddit.feature.feed.recycler.FeedRow
+import com.munch.reddit.feature.feed.recycler.FeedSpacingItemDecoration
+import com.munch.reddit.feature.feed.recycler.FeedSwipeToDismissCallback
+import com.munch.reddit.feature.feed.recycler.RedditFeedAdapter
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.ItemTouchHelper
 
 private const val LOAD_MORE_THRESHOLD = 5
 
@@ -171,7 +183,6 @@ fun RedditFeedScreen(
     onTitleTapped: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    listState: LazyListState? = null,
     onImageClick: (String) -> Unit = {},
     onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit = {},
@@ -186,7 +197,6 @@ fun RedditFeedScreen(
 ) {
     var showSubredditSheet by remember { mutableStateOf(false) }
     val displayTitle = formatToolbarTitle(uiState.selectedSubreddit)
-    val feedListState = listState ?: rememberLazyListState()
     val selectedIndex = subredditOptions.indexOfFirst { it.equals(uiState.selectedSubreddit, ignoreCase = true) }
         .takeIf { it >= 0 } ?: 0
     val spacing = MaterialSpacing
@@ -196,22 +206,26 @@ fun RedditFeedScreen(
         ScrollState(viewModel?.getSideSheetScroll() ?: 0)
     }
     val context = LocalContext.current
+    val feedRecyclerView = remember { mutableStateOf<RecyclerView?>(null) }
 
-    LaunchedEffect(uiState.selectedSubreddit, uiState.scrollPosition) {
+    LaunchedEffect(uiState.selectedSubreddit, uiState.scrollPosition, feedRecyclerView.value) {
+        val recyclerView = feedRecyclerView.value ?: return@LaunchedEffect
+        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return@LaunchedEffect
         val targetScroll = uiState.scrollPosition
         if (targetScroll != null) {
-            val currentIndex = feedListState.firstVisibleItemIndex
-            val currentOffset = feedListState.firstVisibleItemScrollOffset
+            val currentIndex = layoutManager.findFirstVisibleItemPosition()
+            val currentOffset = layoutManager.findViewByPosition(currentIndex)?.top?.let { -it } ?: 0
             if (currentIndex != targetScroll.firstVisibleItemIndex ||
                 currentOffset != targetScroll.firstVisibleItemScrollOffset
             ) {
-                feedListState.scrollToItem(
-                    index = targetScroll.firstVisibleItemIndex,
-                    scrollOffset = targetScroll.firstVisibleItemScrollOffset
-                )
+                val targetIndex = targetScroll.firstVisibleItemIndex.coerceAtLeast(0)
+                layoutManager.scrollToPositionWithOffset(targetIndex, targetScroll.firstVisibleItemScrollOffset.coerceAtLeast(0))
             }
-        } else if (feedListState.firstVisibleItemIndex != 0 || feedListState.firstVisibleItemScrollOffset != 0) {
-            feedListState.scrollToItem(0, 0)
+        } else {
+            val currentIndex = layoutManager.findFirstVisibleItemPosition()
+            if (currentIndex > 0) {
+                recyclerView.scrollToPosition(0)
+            }
         }
     }
 
@@ -265,12 +279,6 @@ fun RedditFeedScreen(
             val previousFeed = viewModel?.getPreviousSubredditFeed()
             if (viewModel != null && previousSubreddit != null && previousFeed != null) {
                 val previousScrollPos = viewModel.getScrollPosition(previousSubreddit)
-                val previousListState = remember(previousSubreddit) {
-                    LazyListState(
-                        firstVisibleItemIndex = previousScrollPos?.firstVisibleItemIndex ?: 0,
-                        firstVisibleItemScrollOffset = previousScrollPos?.firstVisibleItemScrollOffset ?: 0
-                    )
-                }
 
                 // Background layer - previous subreddit
                 PostList(
@@ -284,14 +292,14 @@ fun RedditFeedScreen(
                     readPostIds = uiState.readPostIds,
                     hideReadPosts = false,
                     modifier = Modifier.fillMaxSize(),
-                    listState = previousListState,
                     onImageClick = {},
                     onGalleryPreview = onGalleryPreview,
                     onYouTubeSelected = {},
                     onLoadMore = {},
                     isAppending = false,
                     canLoadMore = false,
-                    contentPadding = PaddingValues(vertical = spacing.lg)
+                    contentPadding = PaddingValues(vertical = spacing.lg),
+                    initialScrollPosition = previousScrollPos
                 )
             }
 
@@ -315,7 +323,6 @@ fun RedditFeedScreen(
                         readPostIds = uiState.readPostIds,
                         hideReadPosts = uiState.hideReadPosts,
                         modifier = Modifier.fillMaxSize(),
-                        listState = feedListState,
                         onImageClick = onImageClick,
                         onGalleryPreview = onGalleryPreview,
                         onYouTubeSelected = onYouTubeSelected,
@@ -325,7 +332,12 @@ fun RedditFeedScreen(
                         isAppending = isAppending,
                         canLoadMore = canLoadMore,
                         contentPadding = PaddingValues(vertical = spacing.lg),
-                        onPostDismissed = onPostDismissed
+                        onPostDismissed = onPostDismissed,
+                        initialScrollPosition = uiState.scrollPosition,
+                        onRecyclerViewReady = { feedRecyclerView.value = it },
+                        onSaveScrollPosition = { index, offset ->
+                            viewModel?.saveScrollPosition(uiState.selectedSubreddit, index, offset)
+                        }
                 )
 
                     // Show loading overlay when switching subreddits
@@ -373,9 +385,7 @@ fun RedditFeedScreen(
                                 icon = ImageVector.vectorResource(id = R.drawable.scroll_to_top_arrow),
                                 contentDescription = "Scroll to top",
                                 onClick = {
-                                    coroutineScope.launch {
-                                        feedListState.animateScrollToItem(0)
-                                    }
+                                    feedRecyclerView.value?.smoothScrollToPosition(0)
                                 },
                                 iconTint = SubredditColor,
                                 iconSize = 20.dp
@@ -385,9 +395,7 @@ fun RedditFeedScreen(
                                 contentDescription = "Refresh feed",
                                 onClick = {
                                     onRetry()
-                                    coroutineScope.launch {
-                                        feedListState.animateScrollToItem(0)
-                                    }
+                                    feedRecyclerView.value?.smoothScrollToPosition(0)
                                 },
                                 iconTint = SubredditColor,
                                 iconSize = 20.dp
@@ -626,7 +634,6 @@ private fun PostList(
     readPostIds: Set<String>,
     hideReadPosts: Boolean,
     modifier: Modifier = Modifier,
-    listState: LazyListState,
     onImageClick: (String) -> Unit,
     onGalleryPreview: (List<String>, Int) -> Unit = { _, _ -> },
     onYouTubeSelected: (String) -> Unit,
@@ -636,7 +643,10 @@ private fun PostList(
     isAppending: Boolean,
     canLoadMore: Boolean,
     contentPadding: PaddingValues,
-    onPostDismissed: (RedditPost) -> Unit = {}
+    onPostDismissed: (RedditPost) -> Unit = {},
+    initialScrollPosition: RedditFeedViewModel.ScrollPosition? = null,
+    onRecyclerViewReady: (RecyclerView) -> Unit = {},
+    onSaveScrollPosition: ((index: Int, offset: Int) -> Unit)? = null
 ) {
     // Track dismissed posts for animation
     var dismissedPostIds by remember { mutableStateOf(setOf<String>()) }
@@ -656,21 +666,6 @@ private fun PostList(
         }
     }
 
-    LaunchedEffect(posts, canLoadMore, isAppending) {
-        if (!canLoadMore || posts.isEmpty()) return@LaunchedEffect
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .distinctUntilChanged()
-            .collect { lastVisibleIndex ->
-                if (lastVisibleIndex == null) return@collect
-                val lastPostIndex = posts.lastIndex
-                if (lastPostIndex < 0) return@collect
-                val triggerIndex = (lastPostIndex - LOAD_MORE_THRESHOLD).coerceAtLeast(0)
-                if (!isAppending && lastVisibleIndex >= triggerIndex) {
-                    onLoadMore()
-                }
-            }
-    }
-
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
@@ -680,141 +675,151 @@ private fun PostList(
             .navigationBarsPadding()
     ) {
         val spacing = MaterialSpacing
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(spacing.md)
-        ) {
-            items(
-                items = posts.filter { post ->
-                    val isDismissed = dismissedPostIds.contains(post.id)
-                    val isHidden = hiddenReadPostIds.contains(post.id)
-                    // Only include posts that should be visible
-                    !isDismissed && !isHidden
-                },
-                key = { it.id },
-                contentType = { post ->
-                    when {
-                        post.media is RedditPostMedia.Image -> "image_post"
-                        post.media is RedditPostMedia.Video -> "video_post"
-                        post.selfText.isNotBlank() -> "text_post"
-                        else -> "link_post"
-                    }
-                }
-            ) { post ->
-                val isRead = readPostIds.contains(post.id)
+        val context = LocalContext.current
+        val density = LocalDensity.current
+        val topPaddingPx = with(density) { contentPadding.calculateTopPadding().roundToPx() }
+        val bottomPaddingPx = with(density) { contentPadding.calculateBottomPadding().roundToPx() }
+        val verticalSpacingPx = with(density) { spacing.md.roundToPx() }
+        val nestedScrollInterop = rememberNestedScrollInteropConnection()
+        val coroutineScope = rememberCoroutineScope()
 
-                Box(
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = tween(durationMillis = 300),
-                        fadeOutSpec = tween(durationMillis = 300),
-                        placementSpec = tween(durationMillis = 300)
-                    )
-                ) {
-                    if (isRead) {
-                        // For read posts, don't use swipe to dismiss - just show the post
-                        RedditPostItem(
-                            post = post,
-                            selectedSubreddit = selectedSubreddit,
-                            onSubredditTapped = onSubredditTapped,
-                            onPostSelected = onPostSelected,
-                            onImageClick = onImageClick,
-                            onGalleryPreview = onGalleryPreview,
-                            onYouTubeSelected = onYouTubeSelected,
-                            onSubredditSelected = onSubredditFromPostClick,
-                            isRead = isRead,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .alpha(0.55f)
-                        )
-                    } else {
-                        // For unread posts, enable swipe to dismiss
-                        val dismissState = rememberDismissState(
-                            confirmStateChange = { value ->
-                                if (value == DismissValue.DismissedToEnd) {
-                                    // Add to dismissed set to trigger exit animation
-                                    dismissedPostIds = dismissedPostIds + post.id
-                                    // Delay the actual dismiss callback to allow animation to complete
-                                    kotlinx.coroutines.MainScope().launch {
-                                        kotlinx.coroutines.delay(300)
-                                        onPostDismissed(post)
-                                    }
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                        )
-                        SwipeToDismiss(
-                            state = dismissState,
-                            modifier = Modifier.fillMaxWidth(),
-                            directions = setOf(DismissDirection.StartToEnd),
-                            dismissThresholds = { FractionalThreshold(0.35f) },
-                            background = {
-                                val isSwipeActive = dismissState.progress.fraction > 0f
-                                val backgroundColor by animateColorAsState(
-                                    targetValue = if (isSwipeActive) {
-                                        Color(0xFFFF0000)
-                                    } else {
-                                        Color.Transparent
-                                    },
-                                    label = "dismiss_background_color"
-                                )
-                                val contentColor = Color.White
-                                val labelAlpha by animateFloatAsState(
-                                    targetValue = if (isSwipeActive) 1f else 0f,
-                                    label = "dismiss_label_alpha"
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(backgroundColor)
-                                        .padding(horizontal = spacing.lg),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.VisibilityOff,
-                                        contentDescription = "Hide & mark read",
-                                        tint = contentColor,
-                                        modifier = Modifier.alpha(labelAlpha)
-                                    )
-                                }
-                            }
-                        ) {
-                            RedditPostItem(
-                                post = post,
-                                selectedSubreddit = selectedSubreddit,
-                                onSubredditTapped = onSubredditTapped,
-                                onPostSelected = onPostSelected,
-                                onImageClick = onImageClick,
-                                onGalleryPreview = onGalleryPreview,
-                                onYouTubeSelected = onYouTubeSelected,
-                                onSubredditSelected = onSubredditFromPostClick,
-                                isRead = isRead,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                }
+        val visiblePosts = remember(posts, dismissedPostIds, hiddenReadPostIds) {
+            posts.filter { post ->
+                val isDismissed = dismissedPostIds.contains(post.id)
+                val isHidden = hiddenReadPostIds.contains(post.id)
+                !isDismissed && !isHidden
             }
-            }
-            if (isAppending) {
-                item("loading_footer") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LoadingIndicator(modifier = Modifier.size(28.dp))
+        }
+
+        val onPostSelectedState = rememberUpdatedState(onPostSelected)
+        val onImageClickState = rememberUpdatedState(onImageClick)
+        val onGalleryPreviewState = rememberUpdatedState(onGalleryPreview)
+        val onYouTubeSelectedState = rememberUpdatedState(onYouTubeSelected)
+        val onSubredditFromPostClickState = rememberUpdatedState(onSubredditFromPostClick)
+        val onPostDismissedState = rememberUpdatedState(onPostDismissed)
+        val onLoadMoreState = rememberUpdatedState(onLoadMore)
+        val canLoadMoreState = rememberUpdatedState(canLoadMore)
+        val isAppendingState = rememberUpdatedState(isAppending)
+        val postCountState = rememberUpdatedState(visiblePosts.size)
+        val onSaveScrollPositionState = rememberUpdatedState(onSaveScrollPosition)
+
+        val feedAdapter = remember {
+            RedditFeedAdapter(
+                onPostSelected = { post -> onPostSelectedState.value(post) },
+                onPostDismissed = { post ->
+                    dismissedPostIds = dismissedPostIds + post.id
+                    coroutineScope.launch {
+                        delay(300)
+                        onPostDismissedState.value(post)
                     }
+                },
+                onImageClick = { url -> onImageClickState.value(url) },
+                onGalleryPreview = { urls, index -> onGalleryPreviewState.value(urls, index) },
+                onLinkClick = { url -> openLinkInCustomTab(context, url) },
+                onYouTubeSelected = { id -> onYouTubeSelectedState.value(id) },
+                onSubredditFromPostClick = { subreddit -> onSubredditFromPostClickState.value(subreddit) }
+            )
+        }
+
+        val currentColors = FeedColors(
+            postBackground = PostBackgroundColor.toArgb(),
+            spacerBackground = SpacerBackgroundColor.toArgb(),
+            title = TitleColor.toArgb(),
+            subreddit = SubredditColor.toArgb(),
+            metaInfo = MetaInfoColor.toArgb(),
+            pinnedLabel = PinnedLabelColor.toArgb(),
+            error = MaterialTheme.colorScheme.error.toArgb(),
+            onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+        )
+
+        val rows = remember(visiblePosts, readPostIds, selectedSubreddit, isAppending, canLoadMore) {
+            buildList {
+                visiblePosts.forEach { post ->
+                    add(
+                        FeedRow.Post(
+                            post = post,
+                            isRead = readPostIds.contains(post.id),
+                            selectedSubreddit = selectedSubreddit
+                        )
+                    )
                 }
-            } else if (!canLoadMore && posts.isNotEmpty()) {
-                item("end_of_feed_spacer") {
-                    Spacer(modifier = Modifier.height(24.dp))
+                if (isAppending) {
+                    add(FeedRow.LoadingFooter)
+                } else if (!canLoadMore && visiblePosts.isNotEmpty()) {
+                    add(FeedRow.EndSpacer)
                 }
             }
         }
+
+        AndroidView(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(nestedScrollInterop),
+            factory = { viewContext ->
+                RecyclerView(viewContext).apply {
+                    layoutManager = LinearLayoutManager(viewContext)
+                    this.adapter = feedAdapter
+                    setPadding(0, topPaddingPx, 0, bottomPaddingPx)
+                    clipToPadding = false
+                    overScrollMode = View.OVER_SCROLL_NEVER
+                    addItemDecoration(FeedSpacingItemDecoration(verticalSpacingPx))
+
+                    ItemTouchHelper(
+                        FeedSwipeToDismissCallback(
+                            canSwipe = { position -> feedAdapter.isSwipeEnabled(position) },
+                            onDismiss = { position -> feedAdapter.dismissAt(position) }
+                        )
+                    ).attachToRecyclerView(this)
+
+                    addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                            if (newState != RecyclerView.SCROLL_STATE_IDLE) return
+                            val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                            val first = lm.findFirstVisibleItemPosition()
+                            if (first == RecyclerView.NO_POSITION) return
+                            val offset = lm.findViewByPosition(first)?.top?.let { -it } ?: 0
+                            onSaveScrollPositionState.value?.invoke(first, offset)
+                        }
+
+                        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                            val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                            val lastVisible = lm.findLastVisibleItemPosition()
+                            if (lastVisible == RecyclerView.NO_POSITION) return
+                            val postCount = postCountState.value
+                            if (postCount <= 0) return
+                            val triggerIndex = (postCount - LOAD_MORE_THRESHOLD).coerceAtLeast(0)
+                            if (canLoadMoreState.value && !isAppendingState.value && lastVisible >= triggerIndex) {
+                                onLoadMoreState.value()
+                            }
+                        }
+                    })
+                }
+            },
+            update = { recyclerView ->
+                onRecyclerViewReady(recyclerView)
+                if (feedAdapter.colors != currentColors) {
+                    feedAdapter.colors = currentColors
+                }
+                feedAdapter.submitList(rows)
+
+                val saved = initialScrollPosition
+                if (saved != null) {
+                    val lm = recyclerView.layoutManager as? LinearLayoutManager
+                    if (lm != null) {
+                        val currentIndex = lm.findFirstVisibleItemPosition()
+                        val currentOffset = lm.findViewByPosition(currentIndex)?.top?.let { -it } ?: 0
+                        if (currentIndex != saved.firstVisibleItemIndex ||
+                            currentOffset != saved.firstVisibleItemScrollOffset
+                        ) {
+                            lm.scrollToPositionWithOffset(
+                                saved.firstVisibleItemIndex.coerceAtLeast(0),
+                                saved.firstVisibleItemScrollOffset.coerceAtLeast(0)
+                            )
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 

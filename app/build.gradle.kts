@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.recyclerview)
     implementation(libs.jsoup)
     // YouTube player - actively maintained and Compose-friendly
     implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
