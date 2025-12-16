@@ -174,11 +174,13 @@ class RedditFeedViewModel(
             SubredditSideSheetScrollState.update(savedScroll)
         }
 
+        val restoredScrollPosition = scrollPositionCache[currentSubreddit.lowercase()]
         _uiState.update { state ->
             state.copy(
                 selectedSubreddit = currentSubreddit,
                 selectedSort = currentSortOption,
                 selectedTopTimeRange = currentTopTimeRange,
+                scrollPosition = restoredScrollPosition,
                 favoriteSubreddits = favoriteSubreddits.toList()
             )
         }

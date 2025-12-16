@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -19,7 +18,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.SavedStateHandle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.munch.reddit.data.AppPreferences
@@ -28,10 +26,11 @@ import com.munch.reddit.theme.FeedThemePreset
 import com.munch.reddit.feature.feed.RedditFeedViewModel
 import com.munch.reddit.feature.videofeed.VideoFeedScreen
 import com.munch.reddit.ui.theme.MunchForRedditTheme
-import org.koin.androidx.compose.koinViewModel
-import org.koin.core.parameter.parametersOf
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class VideoFeedActivity : ComponentActivity() {
+    private val viewModel: RedditFeedViewModel by viewModel(extrasProducer = { defaultViewModelCreationExtras })
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -47,8 +46,6 @@ class VideoFeedActivity : ComponentActivity() {
             val appPreferences = remember { AppPreferences(context) }
             var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
-            val savedStateHandle = remember { SavedStateHandle() }
-            val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
 
             MunchForRedditTheme {
                 val view = LocalView.current

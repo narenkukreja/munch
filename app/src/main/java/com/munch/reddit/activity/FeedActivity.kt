@@ -2,7 +2,6 @@ package com.munch.reddit.activity
 
 import android.app.Activity
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,23 +25,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.munch.reddit.R
 import com.munch.reddit.data.AppPreferences
-import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.feature.feed.FeedTheme
 import com.munch.reddit.theme.FeedThemePreset
-import com.munch.reddit.theme.PostCardStyle
 import com.munch.reddit.feature.feed.RedditFeedViewModel
 import com.munch.reddit.feature.feed.RedditFeedScreen
 import com.munch.reddit.ui.theme.MunchForRedditTheme
-import org.koin.androidx.compose.koinViewModel
-import org.koin.core.parameter.parametersOf
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class FeedActivity : ComponentActivity() {
     private var intentSubreddit by mutableStateOf<String?>(null)
+    private val viewModel: RedditFeedViewModel by viewModel(extrasProducer = { defaultViewModelCreationExtras })
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,8 +59,6 @@ class FeedActivity : ComponentActivity() {
             var feedThemeId by remember { mutableStateOf(appPreferences.selectedTheme) }
             var commentTextSize by remember { mutableStateOf(appPreferences.commentTextSize) }
             val feedThemePreset = remember(feedThemeId) { FeedThemePreset.fromId(feedThemeId) }
-            val savedStateHandle = remember { SavedStateHandle() }
-            val viewModel: RedditFeedViewModel = koinViewModel(parameters = { parametersOf(savedStateHandle) })
             val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
             DisposableEffect(lifecycleOwner, appPreferences) {
