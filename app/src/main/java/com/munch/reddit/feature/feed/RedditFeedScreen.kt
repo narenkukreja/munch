@@ -208,8 +208,18 @@ fun RedditFeedScreen(
     }
     val context = LocalContext.current
     val feedRecyclerView = remember { mutableStateOf<RecyclerView?>(null) }
+    var pendingScrollResetSubreddit by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(uiState.selectedSubreddit, uiState.scrollPosition, feedRecyclerView.value) {
+    LaunchedEffect(uiState.selectedSubreddit) {
+        pendingScrollResetSubreddit = uiState.selectedSubreddit
+    }
+
+    LaunchedEffect(
+        pendingScrollResetSubreddit,
+        uiState.scrollPosition,
+        feedRecyclerView.value,
+        uiState.posts.size
+    ) {
         val recyclerView = feedRecyclerView.value ?: return@LaunchedEffect
         val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return@LaunchedEffect
         val targetScroll = uiState.scrollPosition
@@ -220,13 +230,22 @@ fun RedditFeedScreen(
                 currentOffset != targetScroll.firstVisibleItemScrollOffset
             ) {
                 val targetIndex = targetScroll.firstVisibleItemIndex.coerceAtLeast(0)
-                layoutManager.scrollToPositionWithOffset(targetIndex, targetScroll.firstVisibleItemScrollOffset.coerceAtLeast(0))
+                layoutManager.scrollToPositionWithOffset(
+                    targetIndex,
+                    targetScroll.firstVisibleItemScrollOffset.coerceAtLeast(0)
+                )
             }
+            pendingScrollResetSubreddit = null
         } else {
-            val currentIndex = layoutManager.findFirstVisibleItemPosition()
-            if (currentIndex > 0) {
-                recyclerView.scrollToPosition(0)
+            val pendingSubreddit = pendingScrollResetSubreddit
+            if (pendingSubreddit == null || pendingSubreddit != uiState.selectedSubreddit) {
+                return@LaunchedEffect
             }
+            if (layoutManager.itemCount <= 0) {
+                return@LaunchedEffect
+            }
+            recyclerView.scrollToPosition(0)
+            pendingScrollResetSubreddit = null
         }
     }
 
