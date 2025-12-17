@@ -658,6 +658,16 @@ class RedditFeedViewModel(
         return scrollPositionCache[subreddit.lowercase()]
     }
 
+    fun consumeScrollPosition() {
+        _uiState.update { state ->
+            if (state.scrollPosition == null) {
+                state
+            } else {
+                state.copy(scrollPosition = null)
+            }
+        }
+    }
+
     fun getPreviousSubreddit(): String? {
         return if (subredditStack.size >= 2) {
             subredditStack[subredditStack.size - 2]

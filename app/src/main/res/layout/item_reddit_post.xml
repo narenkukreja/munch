@@ -106,7 +106,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:fontFamily="@font/sfpro_family"
-            android:includeFontPadding="false"
+            android:includeFontPadding="true"
             android:letterSpacing="0.0133"
             android:maxLines="6"
             android:paddingStart="@dimen/spacing_lg"

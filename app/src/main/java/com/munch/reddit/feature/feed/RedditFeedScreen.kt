@@ -219,8 +219,33 @@ fun RedditFeedScreen(
     val feedRecyclerView = remember { mutableStateOf<RecyclerView?>(null) }
     var pendingScrollResetSubreddit by remember { mutableStateOf<String?>(null) }
 
+    var lastSelectedSubreddit by remember { mutableStateOf(uiState.selectedSubreddit) }
     LaunchedEffect(uiState.selectedSubreddit) {
-        pendingScrollResetSubreddit = uiState.selectedSubreddit
+        if (!uiState.selectedSubreddit.equals(lastSelectedSubreddit, ignoreCase = true)) {
+            pendingScrollResetSubreddit = uiState.selectedSubreddit
+            lastSelectedSubreddit = uiState.selectedSubreddit
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val viewModelState = rememberUpdatedState(viewModel)
+    val currentSubredditState = rememberUpdatedState(uiState.selectedSubreddit)
+    val feedRecyclerViewState = rememberUpdatedState(feedRecyclerView.value)
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_PAUSE) return@LifecycleEventObserver
+            val vm = viewModelState.value ?: return@LifecycleEventObserver
+            val recyclerView = feedRecyclerViewState.value ?: return@LifecycleEventObserver
+            val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return@LifecycleEventObserver
+            val first = layoutManager.findFirstVisibleItemPosition()
+            if (first == RecyclerView.NO_POSITION) return@LifecycleEventObserver
+            val offset = layoutManager.findViewByPosition(first)?.top?.let { -it } ?: 0
+            vm.saveScrollPosition(currentSubredditState.value, first, offset)
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(
@@ -245,6 +270,7 @@ fun RedditFeedScreen(
                 )
             }
             pendingScrollResetSubreddit = null
+            viewModel?.consumeScrollPosition()
         } else {
             val pendingSubreddit = pendingScrollResetSubreddit
             if (pendingSubreddit == null || pendingSubreddit != uiState.selectedSubreddit) {
@@ -838,9 +864,15 @@ private fun PostList(
                 feedAdapter.submitList(rows)
 
                 val saved = initialScrollPosition
-                if (saved != null) {
+                val applied = recyclerView.getTag(R.id.tag_feed_applied_scroll_position) as? RedditFeedViewModel.ScrollPosition
+
+                if (saved == null) {
+                    if (applied != null) {
+                        recyclerView.setTag(R.id.tag_feed_applied_scroll_position, null)
+                    }
+                } else if (applied != saved) {
                     val lm = recyclerView.layoutManager as? LinearLayoutManager
-                    if (lm != null) {
+                    if (lm != null && lm.itemCount > 0) {
                         val currentIndex = lm.findFirstVisibleItemPosition()
                         val currentOffset = lm.findViewByPosition(currentIndex)?.top?.let { -it } ?: 0
                         if (currentIndex != saved.firstVisibleItemIndex ||
@@ -851,6 +883,7 @@ private fun PostList(
                                 saved.firstVisibleItemScrollOffset.coerceAtLeast(0)
                             )
                         }
+                        recyclerView.setTag(R.id.tag_feed_applied_scroll_position, saved)
                     }
                 }
             }

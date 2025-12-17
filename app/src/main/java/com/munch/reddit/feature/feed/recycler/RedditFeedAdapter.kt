@@ -15,7 +15,6 @@ import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
-import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.ImageSpan
@@ -238,8 +237,9 @@ class RedditFeedAdapter(
 
         init {
             videoSeekBar.max = 1000
-            body.movementMethod = FeedLinkMovementMethod
+            body.movementMethod = null
             body.highlightColor = Color.TRANSPARENT
+            body.setOnTouchListener(FeedLinkTouchListener)
 
             setDisallowSwipeOnTouch(videoSeekBar)
             setDisallowSwipeOnTouch(galleryRecycler)
@@ -385,6 +385,7 @@ class RedditFeedAdapter(
                     htmlText = sanitizedHtml,
                     linkColor = colors?.subreddit ?: Color.CYAN
                 )
+                body.scrollTo(0, 0)
                 body.setOnClickListener { onPostSelected(post) }
             } else {
                 body.text = null
@@ -1199,16 +1200,28 @@ class RedditFeedAdapter(
                 "i.redd.it" in lower
         }
 
-        private object FeedLinkMovementMethod : LinkMovementMethod() {
-            override fun onTouchEvent(widget: android.widget.TextView, buffer: Spannable, event: MotionEvent): Boolean {
-                val action = event.action
+        private object FeedLinkTouchListener : View.OnTouchListener {
+            override fun onTouch(view: View, event: MotionEvent): Boolean {
+                val widget = view as? TextView ?: return false
+                val buffer = widget.text as? Spannable ?: return false
+                val layout = widget.layout ?: return false
+
+                val action = event.actionMasked
+                if (action == MotionEvent.ACTION_CANCEL) {
+                    Selection.removeSelection(buffer)
+                    widget.scrollTo(0, 0)
+                    return false
+                }
                 if (action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_DOWN) {
-                    return super.onTouchEvent(widget, buffer, event)
+                    return false
                 }
 
-                val layout = widget.layout ?: return false
-                val x = (event.x - widget.totalPaddingLeft + widget.scrollX).toInt()
-                val y = (event.y - widget.totalPaddingTop + widget.scrollY).toInt()
+                if (widget.scrollX != 0 || widget.scrollY != 0) {
+                    widget.scrollTo(0, 0)
+                }
+
+                val x = (event.x - widget.totalPaddingLeft).toInt()
+                val y = (event.y - widget.totalPaddingTop).toInt()
                 val line = layout.getLineForVertical(y)
                 val offset = layout.getOffsetForHorizontal(line, x.toFloat())
 
@@ -1220,9 +1233,8 @@ class RedditFeedAdapter(
 
                 if (action == MotionEvent.ACTION_UP) {
                     link.onClick(widget)
+                    widget.scrollTo(0, 0)
                     Selection.removeSelection(buffer)
-                } else {
-                    Selection.setSelection(buffer, buffer.getSpanStart(link), buffer.getSpanEnd(link))
                 }
                 return true
             }
