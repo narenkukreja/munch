@@ -69,14 +69,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -281,10 +280,8 @@ private fun PostDetailScreen(
     val mediaShareUrl = remember(post) { post?.media?.shareableUrl() }
     val redditShareUrl = remember(post?.permalink) { post?.permalinkUrl() }
     val shareIcon = ImageVector.vectorResource(id = R.drawable.atr_24px)
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val topBarTitle = uiState.post?.subreddit?.removePrefix("r/")?.removePrefix("R/")?.lowercase()
         ?.let { "r/$it" } ?: "Post"
-    val menuIcon = ImageVector.vectorResource(id = R.drawable.atr_24px)
     val currentSubreddit = uiState.post?.subreddit
         ?.removePrefix("r/")
         ?.removePrefix("R/")
@@ -314,18 +311,14 @@ private fun PostDetailScreen(
 
     Scaffold(
         containerColor = SpacerBackgroundColor,
-        modifier = Modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = SpacerBackgroundColor,
-                    scrolledContainerColor = SpacerBackgroundColor,
                     titleContentColor = TitleColor,
                     navigationIconContentColor = TitleColor,
                     actionIconContentColor = TitleColor
                 ),
-                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -336,20 +329,11 @@ private fun PostDetailScreen(
                     }
                 },
                 title = {
-                    AnimatedContent(
-                        targetState = topBarTitle,
-                        transitionSpec = {
-                            (fadeIn(animationSpec = tween(200, delayMillis = 20)) + slideInVertically { it / 8 }) togetherWith
-                                (fadeOut(animationSpec = tween(150)) + slideOutVertically { -it / 8 })
-                        },
-                        label = "detail_toolbar_title"
-                    ) { animatedTitle ->
-                        Text(
-                            text = animatedTitle,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = TitleColor
-                        )
-                    }
+                    Text(
+                        text = topBarTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = TitleColor
+                    )
                 }
             )
         }

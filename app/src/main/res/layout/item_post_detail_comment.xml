@@ -157,6 +157,8 @@
             android:id="@+id/comment_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:layout_marginBottom="15dp"
             android:fontFamily="@font/sfpro_family"
             android:includeFontPadding="true"
             android:letterSpacing="0.0133"
@@ -167,10 +169,11 @@
             android:id="@+id/comment_collapsed_label"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:layout_marginBottom="15dp"
             android:fontFamily="@font/sfpro"
             android:includeFontPadding="false"
             android:textSize="12sp"
             android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>
-

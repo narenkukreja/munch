@@ -5,8 +5,8 @@
     android:layout_height="wrap_content"
     android:paddingStart="@dimen/spacing_lg"
     android:paddingEnd="@dimen/spacing_lg"
-    android:paddingTop="@dimen/spacing_md"
-    android:paddingBottom="@dimen/spacing_md">
+    android:paddingTop="@dimen/spacing_xs"
+    android:paddingBottom="@dimen/spacing_xs">
 
     <View
         android:id="@+id/load_more_replies_indent_stripe"
@@ -24,4 +24,3 @@
         android:maxLines="1"
         android:textSize="14sp" />
 </FrameLayout>
-

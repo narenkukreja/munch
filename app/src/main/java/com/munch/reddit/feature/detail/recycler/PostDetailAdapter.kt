@@ -482,8 +482,8 @@ class PostDetailAdapter(
             val title = colors?.title ?: Color.WHITE
 
             val depth = node.depth
-            val parentVerticalPaddingPx = (root.resources.getDimension(R.dimen.spacing_sm) * 0.5f).roundToInt()
-            val nestedVerticalPaddingPx = (root.resources.getDimension(R.dimen.spacing_xs) * 0.5f).roundToInt()
+            val parentVerticalPaddingPx = (root.resources.getDimension(R.dimen.spacing_sm) * 0.375f).roundToInt()
+            val nestedVerticalPaddingPx = (root.resources.getDimension(R.dimen.spacing_xs) * 0.25f).roundToInt()
             val verticalPaddingPx = if (depth > 0) nestedVerticalPaddingPx else parentVerticalPaddingPx
             val startPadding = root.resources.getDimensionPixelSize(R.dimen.spacing_lg)
             val endPadding = root.resources.getDimensionPixelSize(R.dimen.spacing_lg)
@@ -553,20 +553,21 @@ class PostDetailAdapter(
             body.isVisible = !node.isCollapsed
             collapsedLabel.isVisible = node.isCollapsed
 
-            if (node.isCollapsed) {
-                collapsedLabel.text = repliesLabel
-                collapsedLabel.setTextColor(meta)
-                body.text = null
-            } else {
-                val builder = buildLinkSpannable(
-                    plainText = comment.body,
-                    htmlText = comment.bodyHtml,
-                    linkColor = accent,
-                    onLinkClick = onOpenLink,
-                    onImageClick = onOpenImage,
-                    density = itemView.resources.displayMetrics.density
-                )
-                body.text = builder
+	            if (node.isCollapsed) {
+	                collapsedLabel.text = repliesLabel
+	                collapsedLabel.setTextColor(meta)
+	                body.text = null
+	            } else {
+	                val builder = buildLinkSpannable(
+	                    plainText = comment.body,
+	                    htmlText = comment.bodyHtml,
+	                    linkColor = accent,
+	                    quoteTextColor = meta,
+	                    onLinkClick = onOpenLink,
+	                    onImageClick = onOpenImage,
+	                    density = itemView.resources.displayMetrics.density
+	                )
+	                body.text = builder
                 body.setTextColor(withAlpha(title, 0.9f))
             }
 
@@ -1488,11 +1489,12 @@ class PostDetailAdapter(
         private val LinkRegex = Regex("https?://[^\\s]+")
         private val SubredditRegex = Regex("(?<![A-Za-z0-9_])r/[A-Za-z0-9_]+", RegexOption.IGNORE_CASE)
         private val UserRegex = Regex("(?<![A-Za-z0-9_])u/[A-Za-z0-9_-]+", RegexOption.IGNORE_CASE)
-        private val TrailingUrlDelimiters = charArrayOf(')', ']', '}', '>', ',', '.', ';', ':', '\"', '\'')
-        private val QuoteStripeColorInt = 0xFFFFD54F.toInt()
-        private const val QuoteStripeWidthDp = 3f
-        private const val QuoteStripeGapDp = 8f
-        private const val QuoteItalicSpanFlags = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE or (255 shl Spanned.SPAN_PRIORITY_SHIFT)
+	        private val TrailingUrlDelimiters = charArrayOf(')', ']', '}', '>', ',', '.', ';', ':', '\"', '\'')
+	        private val QuoteStripeColorInt = 0xFFFFD54F.toInt()
+	        private const val QuoteStripeWidthDp = 3f
+	        private const val QuoteStripeGapDp = 8f
+	        private const val QuoteItalicSpanFlags = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE or (255 shl Spanned.SPAN_PRIORITY_SHIFT)
+	        private const val QuoteColorSpanFlags = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE or (255 shl Spanned.SPAN_PRIORITY_SHIFT)
 
         private fun applyIndent(stripe: View, content: View, depth: Int, accentColor: Int) {
             val resources = stripe.resources
@@ -1546,36 +1548,48 @@ class PostDetailAdapter(
             return url to label
         }
 
-        private fun buildLinkSpannable(
-            plainText: String,
-            htmlText: String?,
-            linkColor: Int,
-            onLinkClick: (String) -> Unit,
-            onImageClick: (String) -> Unit,
-            density: Float
-        ): CharSequence {
-            val initial = htmlText?.takeIf { it.isNotBlank() }?.let { raw ->
-                runCatching { HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY) }.getOrNull()
-            }
+	        private fun buildLinkSpannable(
+	            plainText: String,
+	            htmlText: String?,
+	            linkColor: Int,
+	            quoteTextColor: Int? = null,
+	            onLinkClick: (String) -> Unit,
+	            onImageClick: (String) -> Unit,
+	            density: Float
+	        ): CharSequence {
+	            val initial = htmlText?.takeIf { it.isNotBlank() }?.let { raw ->
+	                runCatching { HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY) }.getOrNull()
+	            }
 
-            val builder = SpannableStringBuilder(initial ?: plainText)
-            if (builder.isEmpty()) return builder
+	            val builder = SpannableStringBuilder(initial ?: plainText)
+	            if (builder.isEmpty()) return builder
 
-            replaceImageSpans(builder, linkColor, onLinkClick, onImageClick)
-            replaceUrlSpans(builder, linkColor, onLinkClick, onImageClick)
-            linkifyRawUrls(builder, linkColor, onLinkClick, onImageClick)
-            styleSubredditMentions(builder, linkColor)
-            styleUserMentions(builder, linkColor)
-            styleQuoteSpans(builder, QuoteStripeColorInt, density)
+	            replaceImageSpans(builder, linkColor, onLinkClick, onImageClick)
+	            replaceUrlSpans(builder, linkColor, onLinkClick, onImageClick)
+	            linkifyRawUrls(builder, linkColor, onLinkClick, onImageClick)
+	            styleSubredditMentions(builder, linkColor)
+	            styleUserMentions(builder, linkColor)
+	            styleQuoteSpans(builder, QuoteStripeColorInt, density, quoteTextColor)
+	            trimTrailingWhitespace(builder)
 
-            return builder
-        }
+	            return builder
+	        }
 
-        private fun replaceImageSpans(
-            builder: SpannableStringBuilder,
-            linkColor: Int,
-            onLinkClick: (String) -> Unit,
-            onImageClick: (String) -> Unit
+	        private fun trimTrailingWhitespace(builder: SpannableStringBuilder) {
+	            var end = builder.length
+	            while (end > 0 && builder[end - 1].isWhitespace()) {
+	                end--
+	            }
+	            if (end < builder.length) {
+	                builder.delete(end, builder.length)
+	            }
+	        }
+
+	        private fun replaceImageSpans(
+	            builder: SpannableStringBuilder,
+	            linkColor: Int,
+	            onLinkClick: (String) -> Unit,
+	            onImageClick: (String) -> Unit
         ) {
             val spans = builder.getSpans(0, builder.length, ImageSpan::class.java)
                 .mapNotNull { span ->
@@ -1682,28 +1696,41 @@ class PostDetailAdapter(
             builder.setSpan(StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
 
-        private fun styleQuoteSpans(builder: SpannableStringBuilder, stripeColor: Int, density: Float) {
-            val quoteSpans = builder.getSpans(0, builder.length, QuoteSpan::class.java)
-            if (quoteSpans.isEmpty()) return
+	        private fun styleQuoteSpans(
+	            builder: SpannableStringBuilder,
+	            stripeColor: Int,
+	            density: Float,
+	            quoteTextColor: Int?
+	        ) {
+	            val quoteSpans = builder.getSpans(0, builder.length, QuoteSpan::class.java)
+	            if (quoteSpans.isEmpty()) return
 
-            val stripeWidthPx = (QuoteStripeWidthDp * density).roundToInt().coerceAtLeast(1)
-            val gapWidthPx = (QuoteStripeGapDp * density).roundToInt().coerceAtLeast(0)
+	            val stripeWidthPx = (QuoteStripeWidthDp * density).roundToInt().coerceAtLeast(1)
+	            val gapWidthPx = (QuoteStripeGapDp * density).roundToInt().coerceAtLeast(0)
 
-            quoteSpans.forEach { span ->
-                val start = builder.getSpanStart(span)
-                val end = builder.getSpanEnd(span)
-                builder.removeSpan(span)
-                if (start < 0 || end <= start) return@forEach
+	            quoteSpans.forEach { span ->
+	                val start = builder.getSpanStart(span)
+	                val end = builder.getSpanEnd(span)
+	                builder.removeSpan(span)
+	                if (start < 0 || end <= start) return@forEach
 
-                builder.setSpan(
-                    QuoteStripeSpan(color = stripeColor, stripeWidthPx = stripeWidthPx, gapWidthPx = gapWidthPx),
-                    start,
-                    end,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                builder.setSpan(MergeItalicSpan(), start, end, QuoteItalicSpanFlags)
-            }
-        }
+	                builder.setSpan(
+	                    QuoteStripeSpan(color = stripeColor, stripeWidthPx = stripeWidthPx, gapWidthPx = gapWidthPx),
+	                    start,
+	                    end,
+	                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+	                )
+	                if (quoteTextColor != null) {
+	                    builder.setSpan(
+	                        android.text.style.ForegroundColorSpan(quoteTextColor),
+	                        start,
+	                        end,
+	                        QuoteColorSpanFlags
+	                    )
+	                }
+	                builder.setSpan(MergeItalicSpan(), start, end, QuoteItalicSpanFlags)
+	            }
+	        }
 
         private class QuoteStripeSpan(
             private val color: Int,

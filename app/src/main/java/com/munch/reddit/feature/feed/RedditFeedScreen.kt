@@ -1,6 +1,5 @@
 package com.munch.reddit.feature.feed
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -13,9 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -56,7 +53,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -68,8 +64,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FabPosition
 import androidx.compose.material.ExperimentalMaterialApi
@@ -210,7 +206,6 @@ fun RedditFeedScreen(
     val selectedIndex = subredditOptions.indexOfFirst { it.equals(uiState.selectedSubreddit, ignoreCase = true) }
         .takeIf { it >= 0 } ?: 0
     val spacing = MaterialSpacing
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val coroutineScope = rememberCoroutineScope()
     val sideSheetScrollState = remember(viewModel) {
         ScrollState(viewModel?.getSideSheetScroll() ?: 0)
@@ -303,7 +298,7 @@ fun RedditFeedScreen(
     }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier,
         containerColor = SpacerBackgroundColor,
         topBar = {
             RedditTopBar(
@@ -318,7 +313,6 @@ fun RedditFeedScreen(
                 subredditOptions = subredditOptions,
                 selectedIndex = selectedIndex,
                 onSelectSubreddit = onSelectSubreddit,
-                scrollBehavior = scrollBehavior,
                 onVideoFeedClick = onVideoFeedClick
             )
         },
@@ -502,37 +496,25 @@ private fun RedditTopBar(
     subredditOptions: List<String>,
     selectedIndex: Int,
     onSelectSubreddit: (String) -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior,
     onVideoFeedClick: () -> Unit = {}
 ) {
     var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
-    LargeTopAppBar(
+    TopAppBar(
         title = {
-            AnimatedContent(
-                targetState = title,
-                transitionSpec = {
-                    (fadeIn(animationSpec = tween(durationMillis = 200, delayMillis = 20)) + slideInVertically { it / 10 }) togetherWith
-                        (fadeOut(animationSpec = tween(durationMillis = 140)) + slideOutVertically { -it / 10 })
-                },
-                label = "toolbar_title_transition"
-            ) { animatedTitle ->
-                Text(
-                    text = animatedTitle,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TitleColor,
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onTap)
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = TitleColor,
+                modifier = Modifier.clickable(role = Role.Button, onClick = onTap)
+            )
         },
-        colors = TopAppBarDefaults.largeTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
             containerColor = PostBackgroundColor,
-            scrolledContainerColor = PostBackgroundColor,
             titleContentColor = TitleColor,
             actionIconContentColor = TitleColor,
             navigationIconContentColor = TitleColor
         ),
-        scrollBehavior = scrollBehavior,
         actions = {
             IconButton(onClick = { isFilterMenuExpanded = true }) {
                 Icon(

@@ -3,10 +3,11 @@
     android:id="@+id/load_more_comments_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginBottom="15dp"
     android:paddingStart="@dimen/spacing_lg"
     android:paddingEnd="@dimen/spacing_lg"
-    android:paddingTop="@dimen/spacing_lg"
-    android:paddingBottom="@dimen/spacing_lg">
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingBottom="@dimen/spacing_sm">
 
     <ProgressBar
         android:id="@+id/load_more_comments_progress"
@@ -25,4 +26,3 @@
         android:textSize="14sp"
         android:visibility="gone" />
 </FrameLayout>
-
