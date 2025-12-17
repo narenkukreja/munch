@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/load_more_replies_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingEnd="@dimen/spacing_lg"
+    android:paddingTop="@dimen/spacing_md"
+    android:paddingBottom="@dimen/spacing_md">
+
+    <View
+        android:id="@+id/load_more_replies_indent_stripe"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/load_more_replies_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/sfprobold"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textSize="14sp" />
+</FrameLayout>
+

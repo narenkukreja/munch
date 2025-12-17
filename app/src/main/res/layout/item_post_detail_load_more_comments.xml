@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/load_more_comments_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingEnd="@dimen/spacing_lg"
+    android:paddingTop="@dimen/spacing_lg"
+    android:paddingBottom="@dimen/spacing_lg">
+
+    <ProgressBar
+        android:id="@+id/load_more_comments_progress"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/load_more_comments_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:fontFamily="@font/sfprobold"
+        android:includeFontPadding="false"
+        android:textSize="14sp"
+        android:visibility="gone" />
+</FrameLayout>
+

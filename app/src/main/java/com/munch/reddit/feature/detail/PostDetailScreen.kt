@@ -77,6 +77,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -85,6 +86,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -92,6 +94,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -100,6 +103,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -109,6 +113,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.munch.reddit.domain.SubredditCatalog
 import com.munch.reddit.domain.model.RedditPost
 import com.munch.reddit.domain.model.RedditPostMedia
@@ -153,6 +161,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import com.munch.reddit.feature.detail.recycler.PostDetailAdapter
+import com.munch.reddit.feature.detail.recycler.PostDetailColors
+import com.munch.reddit.feature.detail.recycler.PostDetailRow
 
 private const val COMMENT_LOAD_MORE_THRESHOLD = 5
 private val FlairBackgroundColor = Color(0xFF5E5E5E)
@@ -352,8 +363,38 @@ private fun PostDetailScreen(
                     modifier = Modifier.fillMaxSize()
                 )
                 uiState.post != null -> {
-                    val listState = rememberLazyListState()
-                    val coroutineScope = rememberCoroutineScope()
+                    val recyclerViewHolder = remember { mutableStateOf<RecyclerView?>(null) }
+                    val postId = uiState.post.id
+                    val postBodyExpandedState = rememberSaveable(postId) { mutableStateOf(true) }
+                    val lifecycleOwner = LocalLifecycleOwner.current
+
+                    val onSelectSortState = rememberUpdatedState(onSelectSort)
+                    val onToggleCommentState = rememberUpdatedState(onToggleComment)
+                    val onShowCollapsedHistoryState = rememberUpdatedState(onShowCollapsedHistory)
+                    val onUserLoadMoreCommentsState = rememberUpdatedState(onUserLoadMoreComments)
+                    val onLoadRemoteRepliesState = rememberUpdatedState(onLoadRemoteReplies)
+                    val onLoadMoreRepliesState = rememberUpdatedState(onLoadMoreReplies)
+                    val onOpenImageState = rememberUpdatedState(onOpenImage)
+                    val onOpenGalleryState = rememberUpdatedState(onOpenGallery)
+                    val onOpenYouTubeState = rememberUpdatedState(onOpenYouTube)
+                    val onOpenLinkState = rememberUpdatedState(onOpenLink)
+
+                    val detailAdapter = remember(postId) {
+                        PostDetailAdapter(
+                            lifecycleOwner = lifecycleOwner,
+                            onTogglePostBody = { postBodyExpandedState.value = !postBodyExpandedState.value },
+                            onSelectSort = { sort -> onSelectSortState.value(sort) },
+                            onToggleComment = { id -> onToggleCommentState.value(id) },
+                            onShowCollapsedHistory = { onShowCollapsedHistoryState.value() },
+                            onUserLoadMoreComments = { onUserLoadMoreCommentsState.value() },
+                            onLoadRemoteReplies = { parentId -> onLoadRemoteRepliesState.value(parentId) },
+                            onLoadMoreReplies = { parentId -> onLoadMoreRepliesState.value(parentId) },
+                            onOpenImage = { url -> onOpenImageState.value(url) },
+                            onOpenGallery = { urls, index -> onOpenGalleryState.value(urls, index) },
+                            onOpenYouTube = { id -> onOpenYouTubeState.value(id) },
+                            onOpenLink = { url -> onOpenLinkState.value(url) }
+                        )
+                    }
 
                     Box(modifier = Modifier.fillMaxSize()) {
                         PostDetailContent(
@@ -379,8 +420,10 @@ private fun PostDetailScreen(
                             isRefreshingComments = uiState.isRefreshingComments,
                             pendingRemoteReplyCount = uiState.pendingRemoteReplyCount,
                             autoFetchRemaining = uiState.autoFetchRemaining,
-                            listState = listState,
-                            flairEmojiLookup = uiState.flairEmojiLookup
+                            flairEmojiLookup = uiState.flairEmojiLookup,
+                            adapter = detailAdapter,
+                            isPostBodyExpanded = postBodyExpandedState.value,
+                            onRecyclerViewReady = { recyclerViewHolder.value = it }
                         )
 
                         // Floating Toolbar
@@ -400,28 +443,21 @@ private fun PostDetailScreen(
                                         icon = Icons.Default.ArrowDownward,
                                         contentDescription = "Next comment",
                                         onClick = {
-                                            coroutineScope.launch {
-                                                // Find next top-level comment
-                                                val currentIndex = listState.firstVisibleItemIndex
-                                                // First item is the post, second is sort bar
-                                                // Comments start from index 2
-                                                val commentStartIndex = 2
-                                                var nextTopLevelIndex = -1
+                                            val recyclerView = recyclerViewHolder.value ?: return@FloatingToolbarButton
+                                            val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
+                                                ?: return@FloatingToolbarButton
+                                            val currentIndex = layoutManager.findFirstVisibleItemPosition()
+                                            if (currentIndex == RecyclerView.NO_POSITION) return@FloatingToolbarButton
 
-                                                for (i in (currentIndex + 1) until uiState.comments.size + commentStartIndex) {
-                                                    val commentIndex = i - commentStartIndex
-                                                    if (commentIndex >= 0 && commentIndex < uiState.comments.size) {
-                                                        val item = uiState.comments[commentIndex]
-                                                        if (item is PostDetailViewModel.CommentListItem.CommentNode && item.depth == 0) {
-                                                            nextTopLevelIndex = i
-                                                            break
-                                                        }
-                                                    }
+                                            val rows = detailAdapter.currentList
+                                            val nextTopLevelIndex = (currentIndex + 1 until rows.size)
+                                                .firstOrNull { index ->
+                                                    val row = rows[index]
+                                                    row is PostDetailRow.CommentNode && row.item.depth == 0
                                                 }
 
-                                                if (nextTopLevelIndex != -1) {
-                                                    listState.animateScrollToItem(nextTopLevelIndex)
-                                                }
+                                            if (nextTopLevelIndex != null) {
+                                                recyclerView.smoothScrollToPosition(nextTopLevelIndex)
                                             }
                                         },
                                         iconTint = SubredditColor,
@@ -592,170 +628,131 @@ private fun PostDetailContent(
     isRefreshingComments: Boolean,
     pendingRemoteReplyCount: Int,
     autoFetchRemaining: Int,
-    listState: LazyListState,
-    flairEmojiLookup: Map<String, String>
+    flairEmojiLookup: Map<String, String>,
+    adapter: PostDetailAdapter,
+    isPostBodyExpanded: Boolean,
+    onRecyclerViewReady: (RecyclerView) -> Unit
 ) {
-    val context = LocalContext.current
-
-    LaunchedEffect(comments, canLoadMoreComments, isAppendingComments, isRefreshingComments, autoFetchRemaining) {
-        if (!canLoadMoreComments || comments.isEmpty() || isRefreshingComments) return@LaunchedEffect
-        if (autoFetchRemaining <= 0) return@LaunchedEffect
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .distinctUntilChanged()
-            .collectLatest { index ->
-                if (index == null) return@collectLatest
-                val triggerIndex = (comments.lastIndex - COMMENT_LOAD_MORE_THRESHOLD).coerceAtLeast(0)
-                if (!isAppendingComments && index >= triggerIndex) {
-                    onAutoLoadMoreComments()
-                }
-            }
-    }
-
     val spacing = MaterialSpacing
     val insetTop = paddingValues.calculateTopPadding()
     val insetBottom = paddingValues.calculateBottomPadding()
+    val commentTextSizeSp = CommentTextSize
+    val nestedScrollInterop = rememberNestedScrollInteropConnection()
+    val density = LocalDensity.current
+    val contentTopPaddingPx = with(density) { spacing.lg.roundToPx() }
+    val contentBottomPaddingPx = with(density) { 80.dp.roundToPx() }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SpacerBackgroundColor)
-            .padding(top = insetTop, bottom = insetBottom),
-        state = listState,
-        contentPadding = PaddingValues(top = spacing.lg, bottom = 80.dp)
+    val currentColors = PostDetailColors(
+        postBackground = PostBackgroundColor.toArgb(),
+        spacerBackground = SpacerBackgroundColor.toArgb(),
+        title = TitleColor.toArgb(),
+        subreddit = SubredditColor.toArgb(),
+        metaInfo = MetaInfoColor.toArgb(),
+        pinnedLabel = PinnedLabelColor.toArgb(),
+        modLabel = ModLabelColor.toArgb(),
+        opLabel = OpLabelColor.toArgb(),
+        error = MaterialTheme.colorScheme.error.toArgb(),
+        onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant.toArgb(),
+        outlineVariant = MaterialTheme.colorScheme.outlineVariant.toArgb(),
+        tableCardBackground = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp).toArgb(),
+        tableCardTitle = MaterialTheme.colorScheme.onSurface.toArgb(),
+        tableChipBackground = MaterialTheme.colorScheme.secondaryContainer.toArgb(),
+        tableChipContent = MaterialTheme.colorScheme.onSecondaryContainer.toArgb()
+    )
+
+    val rows = remember(
+        post,
+        isPostBodyExpanded,
+        comments,
+        selectedSort,
+        sortOptions,
+        isRefreshingComments,
+        isAppendingComments,
+        canLoadMoreComments,
+        pendingRemoteReplyCount
     ) {
-        item {
-            Column {
-                Surface(
-                    shape = RectangleShape,
-                    color = PostBackgroundColor,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        RedditPostMediaContent(
-                            media = post.media,
-                            modifier = Modifier.fillMaxWidth(),
-                            onLinkClick = onOpenLink,
-                            onImageClick = onOpenImage,
-                            onGalleryClick = onOpenGallery,
-                            onYoutubeClick = { videoId, url ->
-                                val id = videoId.ifBlank { Uri.parse(url).getQueryParameter("v") ?: "" }
-                                if (id.isNotBlank()) onOpenYouTube(id)
-                            }
-                        )
-                        PostHeader(
-                            post = post,
-                            onOpenLink = onOpenLink,
-                            onOpenImage = onOpenImage
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(spacing.lg))
+        buildList {
+            add(PostDetailRow.Header(post = post, isBodyExpanded = isPostBodyExpanded))
+            if (sortOptions.isNotEmpty()) {
+                add(PostDetailRow.SortBar(selectedSort = selectedSort, sortOptions = sortOptions))
             }
-        }
-        item {
-            CommentSortBar(
-                selectedSort = selectedSort,
-                sortOptions = sortOptions,
-                onSelectSort = onSelectSort
-            )
-        }
-        if (isRefreshingComments) {
-            item("comments_refreshing_loader") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = spacing.lg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LoadingIndicator(modifier = Modifier.size(32.dp))
+            if (isRefreshingComments) {
+                add(PostDetailRow.RefreshingComments)
+            }
+            if (comments.isEmpty() && !isRefreshingComments) {
+                add(PostDetailRow.EmptyComments)
+            }
+            comments.forEach { item ->
+                when (item) {
+                    is PostDetailViewModel.CommentListItem.CommentNode -> add(PostDetailRow.CommentNode(item))
+                    is PostDetailViewModel.CommentListItem.LoadMoreRepliesNode -> add(PostDetailRow.LoadMoreReplies(item))
+                    is PostDetailViewModel.CommentListItem.RemoteRepliesNode -> add(PostDetailRow.RemoteReplies(item))
+                    is PostDetailViewModel.CommentListItem.CollapsedHistoryDivider -> add(PostDetailRow.CollapsedHistory(item))
                 }
             }
-        }
-        if (comments.isEmpty() && !isRefreshingComments) {
-            item {
-                Text(
-                    text = "No comments yet",
-                    color = MetaInfoColor,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.lg, vertical = spacing.lg),
-                    textAlign = TextAlign.Center
+            if (!isRefreshingComments && (canLoadMoreComments || isAppendingComments)) {
+                add(
+                    PostDetailRow.LoadMoreComments(
+                        isAppending = isAppendingComments,
+                        pendingRemoteReplyCount = pendingRemoteReplyCount
+                    )
                 )
-            }
-        }
-        items(
-            items = comments,
-            key = { it.key },
-            contentType = { item ->
-                when (item) {
-                    is PostDetailViewModel.CommentListItem.CommentNode -> "comment"
-                    is PostDetailViewModel.CommentListItem.LoadMoreRepliesNode -> "load_more"
-                    is PostDetailViewModel.CommentListItem.RemoteRepliesNode -> "remote_replies"
-                    is PostDetailViewModel.CommentListItem.CollapsedHistoryDivider -> "collapsed_history"
-                }
-            }
-        ) { item ->
-            Box(
-                modifier = Modifier.padding(vertical = spacing.xs)
-            ) {
-                when (item) {
-                    is PostDetailViewModel.CommentListItem.CollapsedHistoryDivider -> CollapsedHistoryItem(
-                        hiddenCount = item.hiddenCount,
-                        onShowCollapsedHistory = onShowCollapsedHistory
-                    )
-                    is PostDetailViewModel.CommentListItem.CommentNode -> CommentItem(
-                        node = item,
-                        onToggleComment = onToggleComment,
-                        onOpenSubreddit = onOpenSubreddit,
-                        onOpenImage = onOpenImage,
-                        onOpenLink = onOpenLink,
-                        flairEmojiLookup = flairEmojiLookup
-                    )
-                    is PostDetailViewModel.CommentListItem.LoadMoreRepliesNode -> LoadMoreRepliesItem(
-                        node = item,
-                        onLoadMoreReplies = onLoadMoreReplies
-                    )
-                    is PostDetailViewModel.CommentListItem.RemoteRepliesNode -> RemoteRepliesItem(
-                        node = item,
-                        onLoadMoreComments = onLoadRemoteReplies
-                    )
-                }
-            }
-        }
-        if (!isRefreshingComments && (canLoadMoreComments || isAppendingComments)) {
-            item("comments_load_more_control") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.lg, vertical = spacing.lg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isAppendingComments) {
-                        LoadingIndicator(modifier = Modifier.size(28.dp))
-                    } else {
-                        val buttonLabel = if (pendingRemoteReplyCount > 0) {
-                            val unit = if (pendingRemoteReplyCount == 1) "reply" else "replies"
-                            "Load more comments (${formatCount(pendingRemoteReplyCount)} $unit)"
-                        } else {
-                            "Load more comments"
-                        }
-                        TextButton(onClick = onUserLoadMoreComments) {
-                            Text(text = buttonLabel, color = SubredditColor)
-                        }
-                    }
-                }
-            }
-        } else if (comments.isNotEmpty()) {
-            item("comments_end_spacer") {
-                Spacer(modifier = Modifier.height(spacing.xl))
+            } else if (comments.isNotEmpty()) {
+                add(PostDetailRow.EndSpacer)
             }
         }
     }
+
+    val onAutoLoadMoreCommentsState = rememberUpdatedState(onAutoLoadMoreComments)
+    val canLoadMoreState = rememberUpdatedState(canLoadMoreComments)
+    val isAppendingState = rememberUpdatedState(isAppendingComments)
+    val isRefreshingState = rememberUpdatedState(isRefreshingComments)
+    val autoFetchRemainingState = rememberUpdatedState(autoFetchRemaining)
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SpacerBackgroundColor)
+            .padding(top = insetTop, bottom = insetBottom)
+            .nestedScroll(nestedScrollInterop),
+        factory = { viewContext ->
+            RecyclerView(viewContext).apply {
+                layoutManager = LinearLayoutManager(viewContext)
+                clipToPadding = false
+                setPaddingRelative(0, contentTopPaddingPx, 0, contentBottomPaddingPx)
+                this.adapter = adapter
+                setBackgroundColor(currentColors.spacerBackground)
+
+                addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                    private var lastIndex = RecyclerView.NO_POSITION
+
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                        val lastVisible = layoutManager.findLastVisibleItemPosition()
+                        if (lastVisible == RecyclerView.NO_POSITION || lastVisible == lastIndex) return
+                        lastIndex = lastVisible
+                        if (!canLoadMoreState.value || isAppendingState.value || isRefreshingState.value) return
+                        if (autoFetchRemainingState.value <= 0) return
+                        val count = recyclerView.adapter?.itemCount ?: return
+                        val trigger = (count - 1 - COMMENT_LOAD_MORE_THRESHOLD).coerceAtLeast(0)
+                        if (lastVisible >= trigger) {
+                            onAutoLoadMoreCommentsState.value()
+                        }
+                    }
+                })
+
+                onRecyclerViewReady(this)
+            }
+        },
+        update = { recyclerView ->
+            recyclerView.setBackgroundColor(currentColors.spacerBackground)
+            recyclerView.setPaddingRelative(0, contentTopPaddingPx, 0, contentBottomPaddingPx)
+            adapter.colors = currentColors
+            adapter.flairEmojiLookup = flairEmojiLookup
+            adapter.commentTextSizeSp = commentTextSizeSp
+            adapter.submitList(rows)
+        }
+    )
 }
 
 @Composable

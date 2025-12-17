@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/comment_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingEnd="@dimen/spacing_lg">
+
+    <View
+        android:id="@+id/comment_indent_stripe"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/comment_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/comment_header_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/comment_author_group"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/comment_author"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/sfprobold"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textSize="14sp" />
+
+                <LinearLayout
+                    android:id="@+id/comment_flair_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:background="@drawable/bg_flair_badge"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/comment_flair_emoji"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginEnd="4dp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/comment_flair_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/sfpro"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:textColor="@android:color/white"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/comment_mod_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:background="@drawable/bg_badge_pill"
+                    android:fontFamily="@font/sfprobold"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingStart="@dimen/post_badge_padding_horizontal"
+                    android:paddingEnd="@dimen/post_badge_padding_horizontal"
+                    android:paddingTop="@dimen/post_badge_padding_vertical"
+                    android:paddingBottom="@dimen/post_badge_padding_vertical"
+                    android:text="MOD"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/comment_op_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:background="@drawable/bg_badge_pill"
+                    android:fontFamily="@font/sfprobold"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingStart="@dimen/post_badge_padding_horizontal"
+                    android:paddingEnd="@dimen/post_badge_padding_horizontal"
+                    android:paddingTop="@dimen/post_badge_padding_vertical"
+                    android:paddingBottom="@dimen/post_badge_padding_vertical"
+                    android:text="OP"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/comment_meta_group"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/comment_time_icon"
+                    android:layout_width="@dimen/post_meta_icon_size"
+                    android:layout_height="@dimen/post_meta_icon_size"
+                    android:src="@drawable/ic_access_time" />
+
+                <TextView
+                    android:id="@+id/comment_time_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_xs"
+                    android:fontFamily="@font/sfpro"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:id="@+id/comment_score_icon"
+                    android:layout_width="@dimen/post_meta_icon_size"
+                    android:layout_height="@dimen/post_meta_icon_size"
+                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:src="@drawable/ic_arrow_upward" />
+
+                <TextView
+                    android:id="@+id/comment_score_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_xs"
+                    android:fontFamily="@font/sfpro"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/comment_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/sfpro_family"
+            android:includeFontPadding="true"
+            android:letterSpacing="0.0133"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/comment_collapsed_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/sfpro"
+            android:includeFontPadding="false"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>
+
