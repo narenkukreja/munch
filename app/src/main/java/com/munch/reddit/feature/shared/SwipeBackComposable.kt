@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.positionChangeConsumed
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -46,7 +47,6 @@ fun SwipeBackWrapper(
 ) {
     val density = LocalDensity.current
     val velocityThresholdPx = remember(density) { with(density) { 300.dp.toPx() } }
-    val edgeWidthPx = remember(density, edgeWidth) { with(density) { edgeWidth.dp.toPx() } }
     var containerWidth by remember { mutableFloatStateOf(0f) }
     var isExiting by remember { mutableStateOf(false) }
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -60,12 +60,11 @@ fun SwipeBackWrapper(
                 containerWidth = it.width.toFloat()
                 offsetX = offsetX.coerceIn(0f, containerWidth)
             }
-            .pointerInput(containerWidth, swipeThreshold, isExiting, edgeWidthPx) {
+            .pointerInput(containerWidth, swipeThreshold, isExiting) {
                 awaitEachGesture {
                     if (isExiting || containerWidth <= 0f) return@awaitEachGesture
 
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    if (down.position.x > edgeWidthPx) return@awaitEachGesture
 
                     settleJob?.cancel()
                     settleJob = null
@@ -89,6 +88,8 @@ fun SwipeBackWrapper(
 
                         val delta = change.position - change.previousPosition
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
+
+                        if (!dragStarted && change.positionChangeConsumed()) return@awaitEachGesture
 
                         if (!dragStarted) {
                             totalDx += delta.x
