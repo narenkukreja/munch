@@ -158,8 +158,8 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
 
 private const val LOAD_MORE_THRESHOLD = 5
-private const val EXTRA_LAYOUT_SPACE_FACTOR = 2
-private const val PREFETCH_ITEM_VIEW_CACHE = 16
+private const val EXTRA_LAYOUT_SPACE_FACTOR = 1
+private const val PREFETCH_ITEM_VIEW_CACHE = 4
 
 private class FeedLayoutManager(context: Context) : LinearLayoutManager(context) {
     private val extraLayoutSpacePx =
