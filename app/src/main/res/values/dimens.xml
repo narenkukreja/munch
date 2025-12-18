@@ -8,6 +8,8 @@
     <dimen name="spacing_xl">24dp</dimen>
     <dimen name="spacing_xxl">32dp</dimen>
 
+    <dimen name="comment_indent_gap">8dp</dimen>
+
     <dimen name="post_badge_corner_radius">999dp</dimen>
     <dimen name="post_badge_padding_horizontal">8dp</dimen>
     <dimen name="post_badge_padding_vertical">3dp</dimen>

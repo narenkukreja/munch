@@ -78,6 +78,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.WeakHashMap
 import org.koin.core.context.GlobalContext
 import kotlin.math.roundToInt
 
@@ -1499,7 +1500,7 @@ class PostDetailAdapter(
         private fun applyIndent(stripe: View, content: View, depth: Int, accentColor: Int) {
             val resources = stripe.resources
             val indentStep = resources.getDimensionPixelSize(R.dimen.spacing_sm)
-            val gap = resources.getDimensionPixelSize(R.dimen.spacing_xs)
+            val gap = resources.getDimensionPixelSize(R.dimen.comment_indent_gap)
             val stripeWidth = resources.displayMetrics.density * 3f
             val stripeWidthPx = stripeWidth.roundToInt().coerceAtLeast(1)
             val indentPx = (indentStep * depth).coerceAtLeast(0)
@@ -1808,42 +1809,76 @@ class PostDetailAdapter(
         }
 
         private object DetailLinkTouchListener : View.OnTouchListener {
+            private val pressedSpanByView = WeakHashMap<TextView, ClickableSpan>()
+
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 val widget = view as? TextView ?: return false
-                val buffer = widget.text as? Spannable ?: return false
+                val buffer = widget.text as? Spanned ?: return false
                 val layout = widget.layout ?: return false
 
                 val action = event.actionMasked
-                if (action == MotionEvent.ACTION_CANCEL) {
-                    Selection.removeSelection(buffer)
-                    widget.scrollTo(0, 0)
-                    return false
-                }
-                if (action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_DOWN) {
-                    return false
-                }
 
                 if (widget.scrollX != 0 || widget.scrollY != 0) {
                     widget.scrollTo(0, 0)
                 }
 
-                val x = (event.x - widget.totalPaddingLeft).toInt()
-                val y = (event.y - widget.totalPaddingTop).toInt()
+                when (action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        val link = findClickableSpan(widget, buffer, layout, event) ?: return false
+                        pressedSpanByView[widget] = link
+                        if (buffer is Spannable) {
+                            Selection.setSelection(buffer, buffer.getSpanStart(link), buffer.getSpanEnd(link))
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val pressedSpan = pressedSpanByView[widget] ?: return false
+                        if (buffer is Spannable) {
+                            val currentSpan = findClickableSpan(widget, buffer, layout, event)
+                            if (currentSpan == pressedSpan) {
+                                Selection.setSelection(buffer, buffer.getSpanStart(pressedSpan), buffer.getSpanEnd(pressedSpan))
+                            } else {
+                                Selection.removeSelection(buffer)
+                            }
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val pressedSpan = pressedSpanByView.remove(widget) ?: return false
+                        if (buffer is Spannable) {
+                            Selection.removeSelection(buffer)
+                        }
+                        if (findClickableSpan(widget, buffer, layout, event) == pressedSpan) {
+                            pressedSpan.onClick(widget)
+                        }
+                        widget.scrollTo(0, 0)
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        pressedSpanByView.remove(widget)
+                        if (buffer is Spannable) {
+                            Selection.removeSelection(buffer)
+                        }
+                        widget.scrollTo(0, 0)
+                        return true
+                    }
+                }
+
+                return false
+            }
+
+            private fun findClickableSpan(
+                widget: TextView,
+                buffer: Spanned,
+                layout: Layout,
+                event: MotionEvent
+            ): ClickableSpan? {
+                val x = (event.x - widget.totalPaddingLeft + widget.scrollX).toInt()
+                val y = (event.y - widget.totalPaddingTop + widget.scrollY).toInt()
+                if (x < 0 || y < 0 || x > layout.width || y > layout.height) return null
                 val line = layout.getLineForVertical(y)
                 val offset = layout.getOffsetForHorizontal(line, x.toFloat())
-
-                val link = buffer.getSpans(offset, offset, ClickableSpan::class.java).firstOrNull()
-                if (link == null) {
-                    Selection.removeSelection(buffer)
-                    return false
-                }
-
-                if (action == MotionEvent.ACTION_UP) {
-                    link.onClick(widget)
-                    widget.scrollTo(0, 0)
-                    Selection.removeSelection(buffer)
-                }
-                return true
+                return buffer.getSpans(offset, offset, ClickableSpan::class.java).firstOrNull()
             }
         }
 
