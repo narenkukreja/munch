@@ -2,4 +2,5 @@
 <resources>
     <item name="tag_feed_disallow_swipe" type="id" />
     <item name="tag_feed_applied_scroll_position" type="id" />
+    <item name="tag_side_sheet_applied_scroll_offset" type="id" />
 </resources>

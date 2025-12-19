@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -85,6 +84,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -207,9 +207,10 @@ fun RedditFeedScreen(
         .takeIf { it >= 0 } ?: 0
     val spacing = MaterialSpacing
     val coroutineScope = rememberCoroutineScope()
-    val sideSheetScrollState = remember(viewModel) {
-        ScrollState(viewModel?.getSideSheetScroll() ?: 0)
+    val initialSideSheetScrollOffset = remember(showSubredditSheet, viewModel) {
+        if (showSubredditSheet) viewModel?.getSideSheetScroll() ?: 0 else 0
     }
+    var currentSideSheetScrollOffset by remember { mutableIntStateOf(initialSideSheetScrollOffset) }
     val context = LocalContext.current
     val feedRecyclerView = remember { mutableStateOf<RecyclerView?>(null) }
     var pendingScrollResetSubreddit by remember { mutableStateOf<String?>(null) }
@@ -281,20 +282,14 @@ fun RedditFeedScreen(
 
     LaunchedEffect(showSubredditSheet) {
         if (showSubredditSheet) {
-            viewModel?.getSideSheetScroll()?.let { saved ->
-                if (sideSheetScrollState.value != saved) {
-                    sideSheetScrollState.scrollTo(saved)
-                }
-            }
+            currentSideSheetScrollOffset = initialSideSheetScrollOffset
         } else {
-            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+            viewModel?.updateSideSheetScroll(currentSideSheetScrollOffset)
         }
     }
 
     DisposableEffect(viewModel) {
-        onDispose {
-            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
-        }
+        onDispose { viewModel?.updateSideSheetScroll(currentSideSheetScrollOffset) }
     }
 
     Scaffold(
@@ -413,7 +408,8 @@ fun RedditFeedScreen(
                     showSubredditSheet = false
                     context.startActivity(Intent(context, EditFavoritesActivity::class.java))
                 },
-                scrollState = sideSheetScrollState
+                initialScrollOffset = initialSideSheetScrollOffset,
+                onScrollOffsetChange = { currentSideSheetScrollOffset = it }
             )
 
             // Floating Toolbar

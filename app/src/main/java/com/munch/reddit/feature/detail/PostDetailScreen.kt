@@ -22,7 +22,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -82,6 +81,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -287,25 +287,22 @@ private fun PostDetailScreen(
         ?.removePrefix("R/")
         ?.lowercase()
         ?: "all"
-    val sideSheetScrollState = remember(viewModel) {
-        ScrollState(viewModel?.getSideSheetScroll() ?: 0)
+    val initialSideSheetScrollOffset = remember(showSubredditSheet, viewModel) {
+        if (showSubredditSheet) viewModel?.getSideSheetScroll() ?: 0 else 0
     }
+    var currentSideSheetScrollOffset by remember { mutableIntStateOf(initialSideSheetScrollOffset) }
 
     LaunchedEffect(showSubredditSheet) {
         if (showSubredditSheet) {
-            viewModel?.getSideSheetScroll()?.let { saved ->
-                if (sideSheetScrollState.value != saved) {
-                    sideSheetScrollState.scrollTo(saved)
-                }
-            }
+            currentSideSheetScrollOffset = initialSideSheetScrollOffset
         } else {
-            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+            viewModel?.updateSideSheetScroll(currentSideSheetScrollOffset)
         }
     }
 
     DisposableEffect(viewModel) {
         onDispose {
-            viewModel?.updateSideSheetScroll(sideSheetScrollState.value)
+            viewModel?.updateSideSheetScroll(currentSideSheetScrollOffset)
         }
     }
 
@@ -582,7 +579,8 @@ private fun PostDetailScreen(
             showSubredditSheet = false
             context.startActivity(Intent(context, EditFavoritesActivity::class.java))
         },
-        scrollState = sideSheetScrollState
+        initialScrollOffset = initialSideSheetScrollOffset,
+        onScrollOffsetChange = { currentSideSheetScrollOffset = it }
     )
 
 }
